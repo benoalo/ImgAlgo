@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xmlns="http://maven.apache.org/POM/4.0.0"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+		http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    
+    <parent>
+    	<groupId>org.scijava</groupId>
+		<artifactId>pom-scijava</artifactId>
+		<version>16.2.0</version>
+		<relativePath/>
+	</parent>
+
+	<groupId>invizio</groupId>
+	<artifactId>ImgAlgo</artifactId>
+	<version>0.1.0</version>
+
+	<name>img-algorithm</name>
+	<description>A collection of image processing algorithms </description>
+	<url>none</url>
+	<inceptionYear>2017</inceptionYear>
+	<organization>
+		<name>invizio</name>
+		<url>none</url>
+	</organization>
+	<licenses>
+		<license>
+			<name>BSD3</name>
+			<distribution>repo</distribution>
+		</license>
+	</licenses>
+
+	<developers>
+		<developer>
+			<id>Benoit</id>
+			<name>Benoit Lombardot</name>
+			<url>http://imagej.net/User:Benoit</url>
+			<roles>
+				<role>founder</role>
+				<role>developer</role>
+			</roles>
+		</developer>
+	</developers>
+	<contributors>
+		<contributor>
+			<name>none</name>
+		</contributor>
+	</contributors>
+
+	<mailingLists>
+		<mailingList>
+			<name>none</name>
+			<archive>none</archive>
+		</mailingList>
+	</mailingLists>
+
+	 <scm>
+        <url>none</url>
+    </scm>
+    <issueManagement>
+        <system>None</system>
+    </issueManagement>
+    <ciManagement>
+        <system>None</system>
+    </ciManagement>
+
+
+
+	<properties>
+		<package-name>imgalgo</package-name>
+		<main-class>none</main-class>
+		<license.licenseName>BSD3</license.licenseName>
+		<license.copyrightOwners>Benoit Lombardot</license.copyrightOwners>
+	</properties>
+
+
+
+	<repositories>
+		<repository>
+			<id>imagej.public</id>
+			<url>http://maven.imagej.net/content/groups/public</url>
+		</repository>
+	</repositories>
+
+
+
+	<dependencies>
+		
+		<dependency>
+            <groupId>net.imagej</groupId>
+            <artifactId>imagej-legacy</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+        
+		<dependency>
+			<groupId>net.imagej</groupId>
+			<artifactId>imagej</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>net.imagej</groupId>
+			<artifactId>ij</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>net.imagej</groupId>
+			<artifactId>imagej-legacy</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>net.imglib2</groupId>
+			<artifactId>imglib2-ij</artifactId>
+		</dependency>
+		
+	</dependencies>
+	
+	
+	
+</project>
+
