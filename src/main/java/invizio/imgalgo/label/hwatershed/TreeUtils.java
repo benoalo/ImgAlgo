@@ -1,18 +1,37 @@
 package invizio.imgalgo.label.hwatershed;
 
 
+/*
+Author: Benoit Lombardot, Scientific Computing Facility, MPI-CBG, Dresden  
+
+Copyright 2017 Max Planck Institute of Molecular Cell Biology and Genetics, Dresden, Germany
+
+Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following 
+conditions are met:
+
+1 - Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
+
+2 - Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer 
+in the documentation and/or other materials provided with the distribution.
+
+3 - Neither the name of the copyright holder nor the names of its contributors may be used to endorse or promote products derived 
+from this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE 
+COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES 
+(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
+HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) 
+ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+*/
+
+
 import java.util.LinkedList;
 import java.util.List;
 
 import invizio.imgalgo.label.hwatershed.Tree.Node;
 
-/**
- * 
- * @author Benoit Lombardot
- * 
- */
-
-
+@Deprecated // use HTreeLabeling instead
 public class TreeUtils {
 
 	
@@ -50,14 +69,14 @@ public class TreeUtils {
 				int label = 1;
 				for(Node node : labelSeeds){
 					node.setDecoration( label );
-					node.setLabelRoot(node.getId());
+					node.labelRoot = node.getId();
 					label++;
 				}
 			}
 			else{ // we the node ID as a label
 				for(Node node : labelSeeds){
 					node.setDecoration( node.getId() );
-					node.setLabelRoot(node.getId());
+					node.labelRoot = node.getId();
 				}
 			}
 			
@@ -66,6 +85,51 @@ public class TreeUtils {
 		
 		return nodeIdToLabel;
 	}
+	
+	
+	
+	
+	
+	static public int[] getTreeLabeling_HMin_OrphanPeakHandling(Tree tree, double hMin, double threshold, double peakFlooding, boolean keepOrphanPeak ){
+		
+		peakFlooding = Math.max(0, peakFlooding);
+		peakFlooding = Math.min(100, peakFlooding);
+		peakFlooding = peakFlooding/100d;
+		
+		int[] nodeIdToLabel;
+		double[] dyn = tree.getFeature("dynamics");
+		double[] Imax = tree.getFeature("Imax");
+
+		int nNodes = Imax.length;
+		double[] Imin = new double[ nNodes ];
+		double[] thresholds = new double[ nNodes ];
+		
+		for( int i=0; i<nNodes; i++) {
+			Imin[i] = Imax[i]-dyn[i];
+			thresholds[i] = ( Imax[i]-threshold ) * ( 1-peakFlooding );
+		}
+		
+		
+		
+		for(Tree.Node node : tree.getNodes().values())
+		{
+			
+		}
+		
+		
+		LinkedList<Node> labelSeeds = getLabelRoots(tree, dyn , hMin );
+		
+		for(Node node : labelSeeds){
+			node.setDecoration( node.getId() );
+			node.labelRoot = node.getId();
+		}
+		
+		nodeIdToLabel = labelFromSeeds(tree, labelSeeds);
+		
+		
+		return nodeIdToLabel;
+	}
+	
 	
 	
 	/**
@@ -101,6 +165,7 @@ public class TreeUtils {
 			final Node node = Q_toExplore.poll();
 			
 			
+			// all leafs need to be labeled
 			List<Node> children = node.getChildren();
 			if ( children.size()==0 )
 			{
@@ -111,7 +176,7 @@ public class TreeUtils {
 			boolean allChildMeetCriteria=true;
 			for( Node child : children)
 			{
-				if ( !child.getFlag() )
+				if ( !child.getFlag() )  // true if child below the cut value
 				{
 					allChildMeetCriteria=false;
 					Q_toLabel.add(node);
@@ -141,7 +206,7 @@ public class TreeUtils {
 			final Node node = labelSeeds.poll();
 			for( Node child : node.getChildren() ){	
 				child.setDecoration( node.getDecoration() );
-				child.setLabelRoot(node.getLabelRoot());
+				child.labelRoot = node.labelRoot;
 				labelSeeds.add(child);
 			}
 		}
