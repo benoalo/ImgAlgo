@@ -1,10 +1,8 @@
 package invizio.imgalgo.sandbox;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -101,7 +99,8 @@ public class ArrayMultithreading {
 			{
 				int val = source[start+i];
 				dest[i] = val;
-				sum += val;
+				for( int j=1; j<1000; j++)
+					sum += val + (start+i) / j ;
 			}
 			//System.out.println( sum );
 			return sum;
@@ -112,15 +111,15 @@ public class ArrayMultithreading {
 	
 	public static void main(final String... args)
 	{
-		int warmupRuns = 10;
-		int runs = 1000;
-		int size = 10*1000000;
+		int warmupRuns = 5;
+		int runs = 10;
+		int size = 1*1000000;
 		int nThreads = Runtime.getRuntime().availableProcessors();
 		
-		
-		for(int j=0; j<3; j++)
+		int [] nThreadsList = new int[] {1, 2, 4, 5, 6, 9, 12};
+		for(int j=0; j<nThreadsList.length; j++)
 		{
-			nThreads = (int) Math.pow(2, j);
+			nThreads = nThreadsList[j]; // (int) Math.pow(2, j);
 			
 			long dt0 = 0;
 			for(int i=0; i<warmupRuns; i++)

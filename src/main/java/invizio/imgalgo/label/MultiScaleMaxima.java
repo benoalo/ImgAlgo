@@ -19,7 +19,6 @@ import ij.ImagePlus;
 import invizio.imgalgo.Attributes;
 import invizio.imgalgo.Point_A;
 import invizio.imgalgo.RealPoint_A;
-import invizio.imgalgo.label.WindowMaxima.ExtremaType;
 import invizio.imgalgo.label.msmaxima.DOGPyramidHandler;
 import invizio.imgalgo.label.msmaxima.ScaleSpaceExtremaAnalyzer;
 import invizio.imgalgo.util.Label;
