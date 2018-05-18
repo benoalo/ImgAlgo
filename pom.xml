@@ -14,7 +14,7 @@
 
 	<groupId>invizio</groupId>
 	<artifactId>ImgAlgo</artifactId>
-	<version>0.1.0</version>
+	<version>0.1.1</version>
 
 	<name>img-algorithm</name>
 	<description>A collection of image processing algorithms </description>
