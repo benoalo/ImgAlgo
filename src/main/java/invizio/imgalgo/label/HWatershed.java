@@ -107,6 +107,7 @@ public class HWatershed <T extends RealType<T> & NativeType<T>> extends DefaultL
 	  */
 	public void setThreshold(float threshold) {
 		this.threshold = threshold;
+		updateTreeLabeling = true;
 		updateLabelMap = true;
 		isProcessed = false;
 	}
@@ -129,6 +130,7 @@ public class HWatershed <T extends RealType<T> & NativeType<T>> extends DefaultL
 		peakFlooding = Math.max( 0 		, peakFlooding );
 		peakFlooding = Math.min( 100 	, peakFlooding );
 		this.peakFlooding = peakFlooding;
+		updateTreeLabeling = true;
 		updateLabelMap = true;
 		isProcessed = false;
 	}
@@ -408,14 +410,15 @@ public class HWatershed <T extends RealType<T> & NativeType<T>> extends DefaultL
 		
 		
 		Img<FloatType> img = ImageJFunctions.wrap(imp);
-		float threshold = 100;
-		Float hMin = 50f;
+		float threshold = 190;
+		Float hMin = 30f;
 		Float peakFlooding = 100f;
 	
 		HWatershed<FloatType> hWatershed = new HWatershed<FloatType>( img );
 		hWatershed.sethMin((float)(double)hMin);
 		hWatershed.setThreshold((float)((double)threshold));
 		hWatershed.setPeakFlooding((float)(double)peakFlooding);
+		hWatershed.allowSpliting(true);
 		
 		RandomAccessibleInterval<IntType> labelMap = (Img<IntType>) hWatershed.getLabelMap();
 		ij.ui().show( labelMap );
