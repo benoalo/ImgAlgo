@@ -39,12 +39,15 @@ import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.numeric.integer.IntType;
 import net.imglib2.type.numeric.real.FloatType;
 import net.imglib2.view.Views;
+
 import ij.IJ;
 import ij.ImagePlus;
+
 import invizio.imgalgo.label.hwatershed.HWatershedHierarchy;
 import invizio.imgalgo.label.hwatershed.Tree;
-import invizio.imgalgo.label.hwatershed.TreeUtils;
+//import invizio.imgalgo.label.hwatershed.TreeUtils;
 import invizio.imgalgo.util.RAI;
+import invizio.imgalgo.label.hwatershed.HTreeLabeling;
 
 /**
  * 
@@ -86,6 +89,7 @@ public class HWatershed <T extends RealType<T> & NativeType<T>> extends DefaultL
 	float threshold = 0;
 	float hMin = 0;
 	float peakFlooding = 100;
+	boolean allowSpliting = false;
 	
 	boolean createSegmentHierarchy = true;
 	boolean updateTreeLabeling = true;
@@ -93,13 +97,17 @@ public class HWatershed <T extends RealType<T> & NativeType<T>> extends DefaultL
 	
 	// data structure
 	int[] nodeIdToLabel;  	// current tree labeling
-		
+	int[] nodeIdToLabelRoot;
+	double[] peakThresholds;
+	HTreeLabeling treeLabeler;
+	
 	
 	 /**
 	  *  @param threshold , all pixel below threshold are set to 0 
 	  */
 	public void setThreshold(float threshold) {
 		this.threshold = threshold;
+		updateTreeLabeling = true;
 		updateLabelMap = true;
 		isProcessed = false;
 	}
@@ -122,10 +130,19 @@ public class HWatershed <T extends RealType<T> & NativeType<T>> extends DefaultL
 		peakFlooding = Math.max( 0 		, peakFlooding );
 		peakFlooding = Math.min( 100 	, peakFlooding );
 		this.peakFlooding = peakFlooding;
+		updateTreeLabeling = true;
 		updateLabelMap = true;
 		isProcessed = false;
 	}
 	
+	public void allowSpliting(boolean allowSpliting) {
+		
+		this.allowSpliting = allowSpliting;
+		
+		updateTreeLabeling = true;
+		updateLabelMap = true;
+		isProcessed = false;
+	}
 	
 	
 	
@@ -193,8 +210,16 @@ public class HWatershed <T extends RealType<T> & NativeType<T>> extends DefaultL
 		
 		if( ! updateTreeLabeling ) {	return;		}
 		
-		boolean makeNewLabels = false;
-		nodeIdToLabel =  TreeUtils.getTreeLabeling(segmentTree0, "dynamics", hMin, makeNewLabels );
+		treeLabeler = new HTreeLabeling(segmentTree0);
+		
+		int nNodes = segmentTree0.getNumNodes();
+		nodeIdToLabel = new int[nNodes];
+		nodeIdToLabelRoot = new int[nNodes];
+		peakThresholds = new double[nNodes];
+		this.numberOfLabels = treeLabeler.getLabeling(hMin, threshold, peakFlooding, allowSpliting, nodeIdToLabel, nodeIdToLabelRoot, peakThresholds);
+		
+		//boolean makeNewLabels = false;
+		//nodeIdToLabel =  TreeUtils.getTreeLabeling(segmentTree0, "dynamics", hMin, makeNewLabels );
 		
 		updateTreeLabeling = false;
 	}
@@ -210,14 +235,14 @@ public class HWatershed <T extends RealType<T> & NativeType<T>> extends DefaultL
 		
 		IterableInterval<T> input_iterable = Views.iterable( input );
 		labelMap = RAI.duplicate(segmentMap0); //segmentMap0.factory().create(dims, segmentMap0.randomAccess().get().createVariable() );
-		fillLabelMap(labelMap, input_iterable);
+		fillLabelMap2(labelMap, input_iterable);
 		
 		updateLabelMap = false;
 	}
 	
 	
 	
-	
+	@Deprecated
 	protected void fillLabelMap( final RandomAccessibleInterval<IntType> segmentMap, final IterableInterval<T> intensity ){
 		
 		
@@ -267,7 +292,7 @@ public class HWatershed <T extends RealType<T> & NativeType<T>> extends DefaultL
 			if(  val >= threshold )
 			{
 				int node = (int)pixel.getRealFloat();
-				int labelRoot = segmentTree0.getNodes().get(node).getLabelRoot();
+				int labelRoot = segmentTree0.getNodes().get(node).labelRoot;
 				if(  val >= peakThresholds[labelRoot]  )
 				{	
 					int label = nodeIdToLabel2[node];
@@ -283,6 +308,46 @@ public class HWatershed <T extends RealType<T> & NativeType<T>> extends DefaultL
 		
 		return;
 	}
+	
+	
+	protected void fillLabelMap2( final RandomAccessibleInterval<IntType> segmentMap, final IterableInterval<T> intensity  ){
+		
+		
+		//int nNodes = segmentTree0.getNumNodes();
+		//int[] nodeIdToLabel = new int[nNodes];
+		//int[] nodeIdToLabelRoot = new int[nNodes];
+		//double[] peakThresholds = new double[nNodes];
+		
+		//this.nLabels = treeLabeler.getLabeling(hMin, threshold, percentFlooding, keepOrphanPeak, nodeIdToLabel, nodeIdToLabelRoot, peakThresholds);
+		
+		Cursor<IntType> cursor =  Views.iterable( segmentMap ).cursor();
+		Cursor<T> cursorImg = intensity.cursor();
+		while( cursor.hasNext() )
+		{
+			T imgPixel = cursorImg.next();
+			float val =imgPixel.getRealFloat();
+			
+			IntType pixel = cursor.next();
+			if(  val >= threshold )
+			{
+				final int nodeId = (int)pixel.getRealFloat();
+				final int labelRoot = nodeIdToLabelRoot[nodeId];
+				if(  val >= peakThresholds[labelRoot]  )
+				{	
+					final int label = nodeIdToLabel[nodeId];
+					pixel.setReal( (float)label );
+				}
+				else
+					pixel.setReal( 0.0 );
+			}
+			else
+				pixel.setReal( 0.0 );
+		}
+		
+		return;
+		
+	}
+	
 	
 	
 	
@@ -326,7 +391,7 @@ public class HWatershed <T extends RealType<T> & NativeType<T>> extends DefaultL
 			inputSlice = Views.iterable( input );
 		}
 		
-		fillLabelMap( labelMapSlice, inputSlice );
+		fillLabelMap2( labelMapSlice, inputSlice );
 		
 	}
 	
@@ -339,20 +404,21 @@ public class HWatershed <T extends RealType<T> & NativeType<T>> extends DefaultL
 		ImageJ ij = new ImageJ();
 		ij.ui().showUI();
 		
-		//ImagePlus imp = IJ.openImage("F:\\projects\\blobs32.tif");
-		ImagePlus imp = IJ.openImage("C:/Users/Ben/workspace/testImages/blobs32.tif");
+		ImagePlus imp = IJ.openImage("F:\\projects\\blobs32.tif");
+		//ImagePlus imp = IJ.openImage("C:/Users/Ben/workspace/testImages/blobs32.tif");
 		ij.ui().show(imp);
 		
 		
 		Img<FloatType> img = ImageJFunctions.wrap(imp);
-		float threshold = 100;
-		Float hMin = 50f;
+		float threshold = 190;
+		Float hMin = 30f;
 		Float peakFlooding = 100f;
 	
 		HWatershed<FloatType> hWatershed = new HWatershed<FloatType>( img );
 		hWatershed.sethMin((float)(double)hMin);
 		hWatershed.setThreshold((float)((double)threshold));
 		hWatershed.setPeakFlooding((float)(double)peakFlooding);
+		hWatershed.allowSpliting(true);
 		
 		RandomAccessibleInterval<IntType> labelMap = (Img<IntType>) hWatershed.getLabelMap();
 		ij.ui().show( labelMap );

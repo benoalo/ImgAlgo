@@ -227,7 +227,7 @@ public class SegmentHierarchyToLabelMap <T extends RealType<T>> {
 			if(  val >= threshold )
 			{
 				int node = (int)pixel.getRealFloat();
-				int labelRoot = segmentTree0.getNodes().get(node).getLabelRoot();
+				int labelRoot = segmentTree0.getNodes().get(node).labelRoot;
 				if(  val >= peakThresholds[labelRoot]  )
 				{	
 					int label = nodeIdToLabel2[node];
