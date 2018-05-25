@@ -77,6 +77,9 @@ public class ScaleSpaceExtremaAnalyzer < T extends RealType<T> > extends Extrema
 			this.imgRA0 = img0.randomAccess();
 			int R0 = 1;
 			this.imgNeighRA0 = getNeighborhoodRandomAcessible( img0, R0 );
+			for(int d=0; d<nDim; d++)
+				res0[d] = res1[d] / Math.round( (double)img0.dimension(d) / ((double)img1.dimension(d)) );
+			
 		}
 		else{ canBuildScaleSpaceHessianAndGradient = false; }
 		
@@ -85,6 +88,9 @@ public class ScaleSpaceExtremaAnalyzer < T extends RealType<T> > extends Extrema
 			this.imgRA2 = img2.randomAccess();
 			int R2 = 1;
 			this.imgNeighRA2 = getNeighborhoodRandomAcessible( img2, R2 );
+			for(int d=0; d<nDim; d++)
+				res2[d] = res1[d] * Math.round( (double)img2.dimension(d) / ((double)img1.dimension(d)) );
+			
 		}
 		else{ canBuildScaleSpaceHessianAndGradient = false; }
 		
