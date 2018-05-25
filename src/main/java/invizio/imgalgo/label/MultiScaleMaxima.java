@@ -75,7 +75,7 @@ public class MultiScaleMaxima< T extends RealType<T> & NativeType< T > > extends
 	
 	// parameter for the initial detection. these can be set via the constructor
 	double[] resolution;							// the resolution of the input image voxel 
-	int nScalePerOctave=3;							// number of image in an octave from one image to the next the scale is multiplied by 2^(1/nScalePerOctave)
+	int nScalePerOctave=4;							// number of image in an octave from one image to the next the scale is multiplied by 2^(1/nScalePerOctave)
 	WindowMaxima.ExtremaType extremaInOrigImage = WindowMaxima.ExtremaType.MAXIMA;
 													// type of extrema in to detect in the image
 	WindowMaxima.ExtremaType extremaDOG = WindowMaxima.ExtremaType.MINIMA;
@@ -87,7 +87,7 @@ public class MultiScaleMaxima< T extends RealType<T> & NativeType< T > > extends
 	double maxScale=Double.MAX_VALUE;				// maximum scale at which to detect extrema
 	double threshold=0; 							// absolute threshold in the original image 
 	double hMin=0;									// dynamics of the peaks as measured in the dog pyramid (after intensity rescaling)
-	double anistropyMax=2; 						// eratio in the former implementation, 
+	double anistropyMax=2; 							// eratio
 	
 	
 	/** @param minScale minScale and maxScale indicate the range of scale at which maxima can be detected*/
@@ -229,7 +229,7 @@ public class MultiScaleMaxima< T extends RealType<T> & NativeType< T > > extends
 		{	
 			//System.out.println( pt.toString( ) );
 			
-			if( Math.abs(pt.getAttribute("value")) 		> 	hMin 		&&
+			if( Math.abs(pt.getAttribute("value")) 		>= 	hMin 		&&
 				pt.getAttribute("intensity") 			>= 	threshold 	&&
 				pt.getAttribute("scale")				>= 	minScale	&&
 				pt.getAttribute("scale")				<= 	maxScale	&&
@@ -358,6 +358,11 @@ public class MultiScaleMaxima< T extends RealType<T> & NativeType< T > > extends
 			
 			// calculate extrema candidate at that level if necessary
 			float extrema_threshold = 0f;
+			if( extremaDOG.equals( WindowMaxima.ExtremaType.MAXIMA ) )
+				extrema_threshold = (float)hMin;
+			else	
+				extrema_threshold = (float)(-hMin);
+			
 			int neighborhood_radius = 1;
 			WindowMaxima<T> maxDetector = new WindowMaxima<T>( dogImg1, extrema_threshold, neighborhood_radius, extremaDOG, WindowMaxima.NeighborhoodType.SQUARE );
 			List<Point> peaks = maxDetector.getExtrema();
@@ -370,6 +375,8 @@ public class MultiScaleMaxima< T extends RealType<T> & NativeType< T > > extends
 			double[] currentLevelDownSampling = dogPyramid.getDownsampling(octave*nScalePerOctave); // level of downSampling in each dimension WRT the input image
 			RandomAccess<T> dogImg1RA = dogImg1.randomAccess(); 
 			//int count = 0;
+			long[] inputdims = new long[nDim];
+			input.dimensions(inputdims);
 			for(Point pt : peaks)
 			{
 				long[] positionDogImg1 = new long[nDim];
@@ -382,14 +389,20 @@ public class MultiScaleMaxima< T extends RealType<T> & NativeType< T > > extends
 					double[] position = new double[nDim];
 					long[] positionLong = new long[nDim];
 					for(int d=0; d<nDim; d++){
-						position[d] = positionDogImg1[d]*currentLevelDownSampling[d];
-						positionLong[d] = (long) position[d];
+						position[d] = positionDogImg1[d]*currentLevelDownSampling[d];	
 					}
+					
 					double anisoCrit = scaleExtremaAnalyzer.getEigValRatioCriteria();
 					double optimizedScale = scaleExtremaAnalyzer.getOptimizedScale();
 					double[] optimizedPosition = scaleExtremaAnalyzer.getOptimizedPosition();
 					for(int d=0; d<nDim; d++){
-						optimizedPosition[d] *= currentLevelDownSampling[d];
+						double pos = optimizedPosition[d] * currentLevelDownSampling[d];
+						if( pos<0 )
+							pos=0;
+						if( pos>=(double) inputdims[d] )
+							pos=(double)inputdims[d]-1;
+						optimizedPosition[d] = pos;
+						positionLong[d] = (long) pos;
 					}
 					dogImg1RA.setPosition(positionDogImg1);
 					double value = dogImg1RA.get().getRealDouble();
@@ -413,7 +426,7 @@ public class MultiScaleMaxima< T extends RealType<T> & NativeType< T > > extends
 					attributes2.put("scale", 	optimizedScale	);
 					attributes2.put("value", 	value			);
 					attributes2.put("anisoCrit",anisoCrit		);
-					RealPoint_A pt3 = new RealPoint_A(position, attributes2);
+					RealPoint_A pt3 = new RealPoint_A(optimizedPosition, attributes2);
 					realMaxList.add( pt3 );
 					
 				}
@@ -645,8 +658,8 @@ public class MultiScaleMaxima< T extends RealType<T> & NativeType< T > > extends
 		ImageJ ij = new ImageJ();
 		ij.ui().showUI();
 		
-		//ImagePlus imp = IJ.openImage("F:\\projects\\blobs32.tif");
-		ImagePlus imp = IJ.openImage("C:/Users/Ben/workspace/testImages/blobs32.tif");
+		ImagePlus imp = IJ.openImage("F:\\projects\\blobs32.tif");
+		//ImagePlus imp = IJ.openImage("C:/Users/Ben/workspace/testImages/blobs32.tif");
 		ij.ui().show(imp);
 		
 		

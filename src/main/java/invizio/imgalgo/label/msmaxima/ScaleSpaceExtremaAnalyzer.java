@@ -1,6 +1,10 @@
 package invizio.imgalgo.label.msmaxima;
 
 
+import java.util.Arrays;
+
+import org.python.modules.math;
+
 import Jama.Matrix;
 import invizio.imgalgo.label.WindowMaxima.ExtremaType;
 import net.imglib2.Point;
@@ -58,9 +62,16 @@ public class ScaleSpaceExtremaAnalyzer < T extends RealType<T> > extends Extrema
 		super(img1, res1, extremaType);
 		
 		this.img0 = img0;
-		this.res0 = res1;
 		this.img2 = img2;
-		this.res2 = res1;
+		
+		res0 = new double[nDim];
+		res2 = new double[nDim];
+		for(int d=0; d<nDim; d++)
+		{
+			res0[d] = res1[d] / Math.round( (double)img0.dimension(d) / ((double)img1.dimension(d)) );
+			res2[d] = res1[d] * Math.round( (double)img2.dimension(d) / ((double)img1.dimension(d)) );
+		}
+		
 		if (img0!=null)
 		{
 			this.imgRA0 = img0.randomAccess();
@@ -113,7 +124,11 @@ public class ScaleSpaceExtremaAnalyzer < T extends RealType<T> > extends Extrema
 			return scale;
 		
 		deltaPosition = getDeltaPosition();
-		double optimizedScale = scale * Math.pow(2,deltaPosition[nDim]/nScalePerOctave);
+		double optimizedScale; 
+		if( deltaPosition==null )
+			optimizedScale = scale;
+		else
+			optimizedScale = scale * Math.pow(2,deltaPosition[nDim]/nScalePerOctave);
 		
 		return optimizedScale;
 	}
@@ -149,28 +164,59 @@ public class ScaleSpaceExtremaAnalyzer < T extends RealType<T> > extends Extrema
 	public boolean isExtrema()
 	{
 		
-		if( ! super.isExtrema() )
-			return false;
+		//System.out.println("===========");
+		//System.out.println("pos: "+Arrays.toString(position));
+		//System.out.println("res: "+Arrays.toString(res1));
+		
+		boolean isExtrema = true;
+
 		
 		if( imgRA0!=null )
 		{
-			imgRA0.setPosition(position); 
-			Point p0 = localNeighborhoodCheck.check( imgRA0, imgNeighRA0.get() );
+			// measure position0
+			long[] pos0 =  adaptPosition( position, res1, res0 );
+			//System.out.println("l0 neigh: "+Arrays.toString(  getNeighborhoodInImage(pos0, imgNeighRA0)  ));
+			
+			imgRA1.setPosition(position); 
+			imgNeighRA0.setPosition(pos0); 
+			Point p0 = localNeighborhoodCheck.check( imgRA1, imgNeighRA0.get() );
 			if( p0==null )
-				return false;
+				isExtrema = false;
 		}
+		
+		//System.out.println("l1 neigh: "+Arrays.toString(  getNeighborhoodInImage(position, imgNeighRA1)  ));		
+		if( ! super.isExtrema() )
+			isExtrema = false;
 		
 		if( imgRA2!=null )
 		{
-			imgRA2.setPosition(position); 
-			Point p2 = localNeighborhoodCheck.check( imgRA2, imgNeighRA2.get() );
+			// measure position2
+			long[] pos2 =  adaptPosition( position, res1, res2 );
+			//System.out.println("l2 neigh: "+Arrays.toString(  getNeighborhoodInImage(pos2, imgNeighRA2)  ));
+		
+			imgNeighRA2.setPosition(pos2); 
+			Point p2 = localNeighborhoodCheck.check( imgRA1, imgNeighRA2.get() );
 			if( p2==null )
-				return false;
+				isExtrema = false;
 		}
 		
-		return true;
+		//System.out.println("Is extrema? " + isExtrema );
+		
+		return isExtrema;
 	}
 	
+	// convert a position in img1 to a position in img0 or img2 depending on the new resolution passed
+	protected long[] adaptPosition(long[] position, double[] oldRes, double[] newRes)
+	{
+		long[] pos = new long[nDim];
+		for(int d=0; d<nDim; d++) {
+			int factor = (int) ( oldRes[d] / newRes[d] ) ;
+			pos[d] = (long) ( position[d] * factor );
+			pos[d] = (long) Math.max(0, pos[d]);
+			pos[d] = (long) Math.min(math.floor(img1.dimension(d)*factor)-1, pos[d]);
+		}	
+		return pos;
+	}
 	
 	/**
 	 * 
@@ -182,8 +228,10 @@ public class ScaleSpaceExtremaAnalyzer < T extends RealType<T> > extends Extrema
 		{	
 			if (this.neighData0 == null)
 			{
-				this.neighData0 = getNeighborhoodInImage(position, imgNeighRA0);
-				this.neighData2 = getNeighborhoodInImage(position, imgNeighRA2);
+				long[] pos0 =  adaptPosition( position, res1, res0 );
+				this.neighData0 = getNeighborhoodInImage(pos0, imgNeighRA0);
+				long[] pos2 =  adaptPosition( position, res1, res2 );
+				this.neighData2 = getNeighborhoodInImage(pos2, imgNeighRA2);
 			}
 			
 			int center = (int)(Math.pow(3,nDim)/2);
@@ -204,8 +252,10 @@ public class ScaleSpaceExtremaAnalyzer < T extends RealType<T> > extends Extrema
 		{
 			if (this.neighData0 == null)
 			{
-				this.neighData0 = getNeighborhoodInImage(position, imgNeighRA0);
-				this.neighData2 = getNeighborhoodInImage(position, imgNeighRA2);
+				long[] pos0 =  adaptPosition( position, res1, res0 );
+				this.neighData0 = getNeighborhoodInImage(pos0, imgNeighRA0);
+				long[] pos2 =  adaptPosition( position, res1, res2 );
+				this.neighData2 = getNeighborhoodInImage(pos2, imgNeighRA2);
 			}
 			// calculate the derivative involving the scale dimension;
 			int center = (int)(Math.pow(3,nDim)/2);

@@ -2,6 +2,8 @@ package invizio.imgalgo.label.msmaxima;
 
 
 
+import java.util.Arrays;
+
 import Jama.Matrix;
 import invizio.imgalgo.label.WindowMaxima;
 import net.imglib2.type.numeric.RealType;
@@ -133,11 +135,16 @@ public class ExtremaAnalyzer < T extends RealType<T> > {
 		
 		deltaPosition = getDeltaPosition();
 		double[] optimizedPosition = new double[nDim];
-		for(int d=0; d<nDim; d++)
-		{ 
-			optimizedPosition[d] = position[d] + deltaPosition[d];
+		if( deltaPosition==null )
+		{
+			for(int d=0; d<nDim; d++)
+				optimizedPosition[d] = position[d];	
 		}
-		
+		else
+		{
+			for(int d=0; d<nDim; d++)
+				optimizedPosition[d] = position[d] + deltaPosition[d];
+		}
 		return optimizedPosition;
 	}
 	
@@ -187,7 +194,9 @@ public class ExtremaAnalyzer < T extends RealType<T> > {
 	
 	public boolean isExtrema()
 	{
+		
 		imgRA1.setPosition(position); 
+		imgNeighRA1.setPosition(position);
 		Point p = localNeighborhoodCheck.check( imgRA1, imgNeighRA1.get() );
 		if ( p != null )
 			return true;
@@ -215,11 +224,16 @@ public class ExtremaAnalyzer < T extends RealType<T> > {
 			return null;
 					
 		double[] dpos = Mdpos.getColumnPackedCopy();
-		for(int d=0; d<nDim; d++)
+		for(int d=0; d<dpos.length; d++)
 		{ 
-			dpos[d] /= res1[d];
+			if (d<nDim)
+				dpos[d] /= res1[d];
+			
+			if( dpos[d]>0.5 || dpos[d]<-0.5 )
+				dpos[d] = 0;
+			
 		}
-
+		
 		
 		return dpos;
 	}
