@@ -100,7 +100,7 @@ public class AbstractRleImg implements RleImg {
 					prev = false;
 				}
 			}
-			if( start>0)
+			if( start>=0) // modify from > to >= (2018-06-22)
 				rleLine.add( new PixelRun(start, (int)lineLength) );
 			
 			this.setLine(lineIndex, rleLine);

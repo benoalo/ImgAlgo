@@ -305,11 +305,12 @@ public class RleCCL < T extends RealType<T> & NativeType<T> > extends DefaultLab
 		//Img<FloatType> img = (Img<FloatType>) dataset.getImgPlus();
 		//Img<FloatType> img2 = ij.op().convert().float32( img );
 		//Img<FloatType> img =ImageJFunctions.wrap( IJ.openImage("C:/Users/Ben/workspace/testImages/blobs32.tif") );
-		Img<FloatType> img =ImageJFunctions.wrap( IJ.openImage("F:/projects/noise1000-500_std50_blur10.tif") );
+		Img<FloatType> img =ImageJFunctions.wrap( IJ.openImage("F:/projects/2DEmbryoSection_Mette_contourMaskInv.tif") );
+		
 		//img = (Img<FloatType>) ij.op().math().multiply( img, new FloatType(-1) );
 		
 		
-		float threshold = -0.5f;
+		float threshold = 0.5f;
 		int nIter=1;
 		
 		long dt1 = 0;
