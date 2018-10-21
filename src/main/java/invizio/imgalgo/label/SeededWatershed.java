@@ -81,7 +81,7 @@ public class SeededWatershed < T extends RealType<T> & NativeType<T>, U extends 
 		labelMap = RAI.convertToInteger( input , scaleFactor, offset );
 		
 		this.seed = seed;
-		this.threshold = threshold;
+		this.threshold = (threshold+offset)*scaleFactor;
 		this.connectivity = connectivity;
 		
 	}
@@ -340,18 +340,16 @@ public class SeededWatershed < T extends RealType<T> & NativeType<T>, U extends 
 		//Dataset data = (Dataset) ij.io().open("F:\\projects\\blobs32.tif");
 		//Img<FloatType> img = (Img<FloatType>) data.getImgPlus();
 		
-		ImagePlus imp = IJ.openImage("F:\\projects\\blobs32.tif");
+		ImagePlus imp0 = IJ.openImage("C:/Users/Ben/workspace/testImages/sampleNoise_std50_blur10.tif"); //blobs32.tif");
+		Img<FloatType> img = ImageJFunctions.wrap(imp0);
+		float threshold = 0.5f;
+		float hMin = 0.01f;
 		
-		ij.ui().show(imp);
-		
-		Img<FloatType> img = ImageJFunctions.wrap(imp);
-
-		HMaxima<FloatType> maxima = new HMaxima<FloatType>( img, 100, 10 );
+		HMaxima<FloatType> maxima = new HMaxima<FloatType>( img, threshold, hMin );
 		RandomAccessibleInterval<IntType> seeds = maxima.getLabelMap();
 		
 		ij.ui().show(seeds);
 		
-		float threshold = 50;
 		SeededWatershed<FloatType,IntType> watershed = new SeededWatershed<FloatType,IntType>( img , seeds, threshold, WatershedConnectivity.FACE );
 		
 		RandomAccessibleInterval<IntType> labelMap = watershed.getLabelMap();
