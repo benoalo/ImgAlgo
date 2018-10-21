@@ -154,6 +154,47 @@ public class RAI {
 		return output;
 	}
 	
+	/**
+	 * Creates a new image with a certain scaling and offset of pixel values in input 
+	 * @param input
+	 * @param scaleFactor
+	 * @param offset
+	 * @return a rescaled image
+	 */
+	public static <T extends RealType<T> > RandomAccessibleInterval<T> scale( RandomAccessibleInterval<T> input, float scaleFactor, float offset ){
+		
+		
+		// determine an appropriate factory for the output
+		ImgFactory<T> imgFactory = Util.getSuitableImgFactory(input, input.randomAccess().get().createVariable() );
+		RandomAccessibleInterval<T> output =  imgFactory.create( input );
+
+		// copy input into output
+		// could such conversion benefit more infrastructure if using Convert api in imglib2  
+		
+		if(  Views.iterable(input).iterationOrder().equals( Views.iterable(output).iterationOrder() )  )
+		{
+			final Cursor< T > in = Views.iterable(input).cursor();
+			final Cursor< T > out = Views.iterable(output).cursor();
+			while( out.hasNext() )
+			{
+				out.next().setReal( ( in.next().getRealFloat() + offset ) * scaleFactor  );
+			}
+		}
+		else
+		{
+			final Cursor< T > out = Views.iterable(output).cursor();
+			final RandomAccess< T > in = input.randomAccess();
+	
+			while( out.hasNext() )
+			{
+				out.fwd();
+				in.setPosition( out );
+				out.get().setReal( ( in.get().getRealFloat() + offset ) * scaleFactor );
+			}
+		}
+		
+		return output;
+	}
 	
 	
 }

@@ -143,7 +143,7 @@ public class DefaultLabelAlgorithm < T extends RealType<T> & NativeType<T> >  im
 	
 	
 	// TODO: guarantee that the factory will be the same
-	private RandomAccessibleInterval<T> duplicate( RandomAccessibleInterval<T> input ){
+	protected RandomAccessibleInterval<T> duplicate( RandomAccessibleInterval<T> input ){
 		
 		
 		// determine an appropriate factory for the output

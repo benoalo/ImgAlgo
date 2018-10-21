@@ -3,17 +3,23 @@ package invizio.imgalgo.label;
 
 import java.io.IOException;
 
+import ij.IJ;
+import ij.ImagePlus;
 import invizio.imgalgo.util.Pixel;
+import invizio.imgalgo.util.RAI;
+import net.imagej.ImageJ;
 import net.imglib2.Cursor;
 //import net.imglib2.FinalInterval;
 
 import net.imglib2.RandomAccess;
 
 import net.imglib2.RandomAccessibleInterval;
-
+import net.imglib2.algorithm.stats.ComputeMinMax;
+import net.imglib2.img.Img;
 import net.imglib2.img.array.ArrayImg;
 import net.imglib2.img.basictypeaccess.IntAccess;
 import net.imglib2.img.basictypeaccess.array.IntArray;
+import net.imglib2.img.display.imagej.ImageJFunctions;
 import net.imglib2.outofbounds.OutOfBounds;
 import net.imglib2.outofbounds.OutOfBoundsConstantValueFactory;
 import net.imglib2.outofbounds.OutOfBoundsFactory;
@@ -21,6 +27,7 @@ import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.RealType;
 
 import net.imglib2.type.numeric.integer.IntType;
+import net.imglib2.type.numeric.real.FloatType;
 import net.imglib2.util.Fraction;
 import net.imglib2.view.Views;
 
@@ -64,13 +71,43 @@ public class HMaxima < T extends RealType<T> & NativeType<T> > extends DefaultLa
 	int[] criteria;
 	
 	
+	private float scaleFactor = 1;
+	private float offset = 0;
+	private float inputMin=0;
+	private float inputMax=0;
+	private boolean scaleFactorProcessed = false;
+	
+	
 	public HMaxima(RandomAccessibleInterval<T> input, float threshold, float Hmin) {
 		
 		super( input );
 		
-		this.Hmin = Hmin;
-		this.threshold = threshold;
+		scaleFactor = getScaleFactor();
+		offset = -inputMin;
+		this.input = RAI.scale( input , scaleFactor, offset );
 		
+		
+		this.Hmin = Hmin*scaleFactor;
+		this.threshold = (threshold+offset)*scaleFactor;
+		
+	}
+	
+	
+	
+	private float getScaleFactor() {
+		if( ! scaleFactorProcessed ) {
+			final T Tmin = input.randomAccess().get().createVariable();
+			final T Tmax = Tmin.createVariable();		
+			ComputeMinMax.computeMinMax( input, Tmin, Tmax);
+			inputMin = Tmin.getRealFloat() ;
+			inputMax = Tmax.getRealFloat() ;
+			final float range = inputMax - inputMin ;
+			scaleFactor = range >= 255f ? 1f : 255f/range;
+			
+			scaleFactorProcessed = true;
+		}
+		
+		return scaleFactor;
 	}
 	
 	@Override
@@ -94,6 +131,13 @@ public class HMaxima < T extends RealType<T> & NativeType<T> > extends DefaultLa
 			if(val<min)       {  min = val;  }
 			else if( val>max ){  max = val;  }
 		}
+		
+		
+		if( max-min < this.minNumberOfLevel ) {
+			input = this.duplicate(input );
+		}
+		
+		
 		
 		min = Math.max(min, threshold+1); // the threshold is excluded from the pixel that will be processed
 		
@@ -301,7 +345,17 @@ public class HMaxima < T extends RealType<T> & NativeType<T> > extends DefaultLa
 //		
 //		ij.ui().show(output);
 		
+		ImageJ ij = new ImageJ();
+		ij.ui().showUI();
 		
+		//ImagePlus imp = IJ.openImage("F:\\projects\\blobs32.tif");
+		ImagePlus imp0 = IJ.openImage("C:/Users/Ben/workspace/testImages/sampleNoise_std50_blur10.tif"); //blobs32.tif");
+		Img<FloatType> img = ImageJFunctions.wrap(imp0);
+		float threshold = 0.5f;
+		float hMin = 0.01f;
+		HMaxima<FloatType> labeler = new HMaxima<FloatType>( img, threshold, hMin);
+		RandomAccessibleInterval<IntType> output = labeler.getLabelMap();
+		ImageJFunctions.wrap(output,"hmax").show();
 		
 		
 		
