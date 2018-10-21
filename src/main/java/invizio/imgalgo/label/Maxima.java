@@ -180,6 +180,9 @@ public class Maxima< T extends RealType<T> & NativeType<T> > extends DefaultLabe
 				else 
 					parent[i] = parent[ parent[i] ];
 			}
+			else {
+				parent[i] = 0;
+			}
 		}
 		numberOfLabels = current_label;
         
