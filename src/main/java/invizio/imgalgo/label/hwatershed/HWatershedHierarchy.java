@@ -54,13 +54,7 @@ import net.imglib2.view.Views;
 
 public class HWatershedHierarchy <T extends RealType<T> & NativeType<T>> extends DefaultLabelAlgorithm<T> {
 	
-	// is there a version where watershed and tree construction are done independently
-	// would allow to use fast watershed and to choose different similarity measure
-	//  see Edelsbrunner strategy for mesh simplification
-	//	or before see algorithm for region merging based on similarity
-	
-	
-	// Connectivity enum that limits the settable connectivity to Face and Full while still pointing to the standard connectivity class
+	// Connectivity enum that limits the settable connectivity to Face and Full while still pointing to the standard connectivity enum
 	public enum ConnectivityHWS
 	{
 		FACE(Pixel.Connectivity.FACE),
@@ -83,28 +77,19 @@ public class HWatershedHierarchy <T extends RealType<T> & NativeType<T>> extends
 	private ConnectivityHWS connectivity;
 	private Tree segmentTree;
 	
-	private float scaleFactor = 1;
-	private float offset = 0;
-	private float inputMin=0;
-	private float inputMax=0;
-	private boolean scaleFactorProcessed = false;
-	
 	
 	public HWatershedHierarchy(RandomAccessibleInterval<T> input, float threshold, ConnectivityHWS connectivity)
 	{
 		super( input );
 		
-		scaleFactor = getScaleFactor();
-		offset = -inputMin;
+		this.getScaleFactor();
 		labelMap = RAI.convertToInteger( input , scaleFactor, offset );
 				
-		this.threshold = threshold;
+		this.threshold = (float) Math.floor((threshold + offset ) * scaleFactor);
 		this.connectivity = connectivity;
 	}
 	
 	
-	
-	// getter ...
 	
 	public Tree getSegmentTree() {
 		if( ! isProcessed )
@@ -113,21 +98,6 @@ public class HWatershedHierarchy <T extends RealType<T> & NativeType<T>> extends
 	}
 
 	
-	private float getScaleFactor() {
-		if( ! scaleFactorProcessed ) {
-			final T Tmin = input.randomAccess().get().createVariable();
-			final T Tmax = Tmin.createVariable();		
-			ComputeMinMax.computeMinMax( input, Tmin, Tmax);
-			inputMin = Tmin.getRealFloat() ;
-			inputMax = Tmax.getRealFloat() ;
-			final float range = inputMax - inputMin ;
-			scaleFactor = range >= 255f ? 1f : 255f/range;
-			
-			scaleFactorProcessed = true;
-		}
-		
-		return scaleFactor;
-	}
 	
 	
 	
@@ -137,19 +107,11 @@ public class HWatershedHierarchy <T extends RealType<T> & NativeType<T>> extends
 		
 		//////////////////////////////////////////////////////////////////////
 		// initialisation ////////////////////////////////////////////////////
-		//ProgressDialog.setStatusText("HWatershed: Initialisation");
-		//ProgressDialog.setProgress( 0 );
-		
-		//ImageJFunctions.show( RAI.duplicate(labelMap) );
 		
 		IntType Tmin = labelMap.randomAccess().get().createVariable();
 		IntType Tmax = Tmin.createVariable();
 		ComputeMinMax.computeMinMax(labelMap, Tmin, Tmax);
-		
-		// benoit: added on 2017-09-01 to handle the fact that input is rescaled
-		threshold = (float) Math.floor((threshold + offset ) * scaleFactor);
-		
-		
+				
 		float min = Math.max(threshold, Tmin.getRealFloat());
 		float max = Tmax.getRealFloat();
 		
@@ -161,13 +123,6 @@ public class HWatershedHierarchy <T extends RealType<T> & NativeType<T>> extends
 		ComputeMinMax.computeMinMax(seed, Tdummy, TnSeeds);
 		int nLeaves = (int) TnSeeds.getRealFloat();
 		
-		
-		// create a priority queue
-//		System.out.println("offset : " + offset );
-//		System.out.println("scale : " + scaleFactor );
-//		System.out.println("thresh : " + threshold );
-//		System.out.println("min : " + min );
-//		System.out.println("max : " + max );
 		
 		HierarchicalFIFO Q = new HierarchicalFIFO( min, max);
 		
@@ -196,16 +151,14 @@ public class HWatershedHierarchy <T extends RealType<T> & NativeType<T>> extends
 		
 		// fill the queue
 		long idx=-1;
-		//int pixToProcessCount = 0;	// for process dialog
 		while( input_cursor.hasNext() )
 		{
 			++idx;
 			IntType pInput = input_cursor.next();
-			int pVal = pInput.getInteger();//.getRealFloat();
-			int valSeed = seed_cursor.next().getInteger();//RealFloat(); 
+			int pVal = pInput.getInteger();
+			int valSeed = seed_cursor.next().getInteger();
 			if ( pVal>=min)
 			{
-				//pixToProcessCount++; 	// for process dialog
 				if ( valSeed>0)
 				{
 					Q.add( idx, pVal );
@@ -239,31 +192,11 @@ public class HWatershedHierarchy <T extends RealType<T> & NativeType<T>> extends
 		
 		/////////////////////////////////////////////////////////////////////////////////////
 		// building the watershed and the tree //////////////////////////////////////////////
-		//ProgressDialog.setStatusText("HWatershed: building label map and segment tree");
 		
 		int newNode = nLeaves;
-		// int pixProcessed = 0;  	// for process dialog
-		// int prevPercentDone = 0;	// for process dialog
 		while( Q.HasNext() )
 		{ 	
-			
-//			pixProcessed++;
-//			final int percentDone = (pixProcessed*100)/pixToProcessCount;
-//			if( percentDone != prevPercentDone ){
-//				prevPercentDone = percentDone;
-//				ProgressDialog.setProgress( percentDone*0.01f );
-//				if (ProgressDialog.wasCancelled())
-//				{
-//					labelMapMaxTree=null;
-//					maxTree = null;
-//					ProgressDialog.reset();
-//					ProgressDialog.finish();
-//					wasCancelled=true;
-//					return;
-//				}
-//			}
-			
-			
+						
 			final HierarchicalFIFO.Item pixel = Q.Next();
 			final long pIdx = pixel.getIndex();
 			final float pVal = Q.getCurrent_value();
@@ -274,7 +207,6 @@ public class HWatershedHierarchy <T extends RealType<T> & NativeType<T>> extends
 			IntType p = input_XRA.get();
 			int pLeaf = (int)(min - 1 - p.getRealFloat());
 			int pNode = findRoot(pLeaf, parent);
-			//System.out.println("pLeaf "+ pLeaf +" , pNode "+ pNode );
 			isDequeued[(int)pIdx]=true;
 			
 			// loop on neighbors			
@@ -295,16 +227,12 @@ public class HWatershedHierarchy <T extends RealType<T> & NativeType<T>> extends
 						int nNode = findRoot(nLeaf, parent);
 						
 						if( nNode != pNode ) // 2 distincts nodes are meeting and p is the saddle : merge Nodes
-						{
-							
+						{							
 							newNode++;
 							double Hn = Imax[nNode]-pVal;
 							hCriteria[nNode] = Hn;
 							double Hp = Imax[pNode]-pVal;
 							hCriteria[pNode] = Hp;
-
-							//System.out.println("nLeaf "+ nLeaf +" , nNode "+ nNode +" , Hn "+ Hn );
-							//System.out.println("pLeaf "+ pLeaf +" , pNode "+ pNode +" , Hp "+ Hp );
 
 							//merge the node with smallest H with first neighbor node that has higher dynamics
 							int node1, node2;
@@ -369,11 +297,9 @@ public class HWatershedHierarchy <T extends RealType<T> & NativeType<T>> extends
 							}
 							mergeNodes(node1, node2, newNode, parent, children);
 							pNode=findRoot(newNode, parent);
-							//System.out.println("node1 "+ node1 +" , node2 "+ node2 +" , newNode "+ newNode +" , maxNode "+ (2*nLeaves) );
-
+						
 							Imax[newNode]= Math.max(Imax[node1], Imax[node2]);
 							hCriteria[newNode] =  Math.max(hCriteria[node1], hCriteria[node2]); //Imax[newNode]-pVal;
-							//
 						}
 					}
 					
@@ -401,8 +327,6 @@ public class HWatershedHierarchy <T extends RealType<T> & NativeType<T>> extends
 		
 		//////////////////////////////////////////////////////////////////////////////////
 		// final pass on the label image /////////////////////////////////////////////////
-		//ProgressDialog.setStatusText("HWatershed: final pass");
-		
 		
 		// convert the input to label image (label L is stored in input with value min-1-L all other value should be equal to min-1 )
 		final IntType minT = labelMap.randomAccess().get().createVariable();
@@ -437,9 +361,6 @@ public class HWatershedHierarchy <T extends RealType<T> & NativeType<T>> extends
         
         this.numberOfLabels = nLeaves;
         
-        
-        //ProgressDialog.finish();
-       // wasCancelled=false;
         return;
         // at the end, input was transformed to a label image
         // hCriteria contains the dynamics of each peak
@@ -497,21 +418,6 @@ public class HWatershedHierarchy <T extends RealType<T> & NativeType<T>> extends
 	
 
 
-	
-	
-	
-	
-	
-	
-//	protected static void getPosFromIdx(long idx, long[] position, long[] dimensions)
-//	{
-//		for ( int i = 0; i < dimensions.length; i++ )
-//		{
-//			position[ i ] = ( int ) ( idx % dimensions[ i ] );
-//			idx /= dimensions[ i ];
-//		}
-//	}
-	
 		
 	// implementation pseudo code
 	//

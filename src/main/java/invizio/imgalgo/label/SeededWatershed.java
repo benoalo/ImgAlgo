@@ -64,20 +64,12 @@ public class SeededWatershed < T extends RealType<T> & NativeType<T>, U extends 
 	float threshold = 0;
 	WatershedConnectivity connectivity = WatershedConnectivity.FACE;
 	
-	private float scaleFactor = 1;
-	private float offset = 0;
-	private float inputMin=0;
-	private float inputMax=0;
-	private boolean scaleFactorProcessed = false;
-	
-	
 	
 	public SeededWatershed( RandomAccessibleInterval<T> input, RandomAccessibleInterval<U> seed, float threshold, WatershedConnectivity connectivity) {
 		
 		super( input );
 		
-		scaleFactor = getScaleFactor();
-		offset = -inputMin;
+		this.getScaleFactor();
 		labelMap = RAI.convertToInteger( input , scaleFactor, offset );
 		
 		this.seed = seed;
@@ -87,23 +79,7 @@ public class SeededWatershed < T extends RealType<T> & NativeType<T>, U extends 
 	}
 	
 	
-	private float getScaleFactor() {
-		
-		if( ! scaleFactorProcessed ) {
-			
-			final T Tmin = input.randomAccess().get().createVariable();
-			final T Tmax = Tmin.createVariable();		
-			ComputeMinMax.computeMinMax( input, Tmin, Tmax);
-			inputMin = Tmin.getRealFloat() ;
-			inputMax = Tmax.getRealFloat() ;
-			final float range = inputMax - inputMin ;
-			scaleFactor = range >= 255f ? 1f : 255f/range;
-			
-			scaleFactorProcessed = true;
-		}
-		
-		return scaleFactor;
-	}
+	
 	
 	
 	// 2016-06-02 (thresh=100, seed=Hmaximax  with h=5)
@@ -141,7 +117,7 @@ public class SeededWatershed < T extends RealType<T> & NativeType<T>, U extends 
 		min = Math.max(min, threshold);
 		
 		// create a priority queue
-		HierarchicalFIFO Q = new HierarchicalFIFO( min, max, (int)Math.max(255, max-min));
+		HierarchicalFIFO Q = new HierarchicalFIFO( min, max, (int)Math.max(this.minNumberOfLevel, max-min));
 		
 		
 		

@@ -27,6 +27,7 @@ import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.RealType;
 
 import net.imglib2.type.numeric.integer.IntType;
+import net.imglib2.type.numeric.real.AbstractRealType;
 import net.imglib2.type.numeric.real.FloatType;
 import net.imglib2.util.Fraction;
 import net.imglib2.view.Views;
@@ -71,22 +72,22 @@ public class HMaxima < T extends RealType<T> & NativeType<T> > extends DefaultLa
 	int[] criteria;
 	
 	
-	private float scaleFactor = 1;
-	private float offset = 0;
-	private float inputMin=0;
-	private float inputMax=0;
-	private boolean scaleFactorProcessed = false;
+	//private float scaleFactor = 1;
+	//private float offset = 0;
+	//private float inputMin=0;
+	//private float inputMax=0;
+	//private boolean scaleFactorProcessed = false;
 	
 	
 	public HMaxima(RandomAccessibleInterval<T> input, float threshold, float Hmin) {
 		
 		super( input );
 		
-		scaleFactor = getScaleFactor();
-		offset = -inputMin;
-		this.input = RAI.scale( input , scaleFactor, offset );
-		
-		
+		T sample = input.randomAccess().get().createVariable();
+		this.getScaleFactor();
+		if( scaleFactor>1 && sample instanceof AbstractRealType)
+			this.input = RAI.scale( input , scaleFactor, offset );
+			
 		this.Hmin = Hmin*scaleFactor;
 		this.threshold = (threshold+offset)*scaleFactor;
 		
@@ -94,21 +95,7 @@ public class HMaxima < T extends RealType<T> & NativeType<T> > extends DefaultLa
 	
 	
 	
-	private float getScaleFactor() {
-		if( ! scaleFactorProcessed ) {
-			final T Tmin = input.randomAccess().get().createVariable();
-			final T Tmax = Tmin.createVariable();		
-			ComputeMinMax.computeMinMax( input, Tmin, Tmax);
-			inputMin = Tmin.getRealFloat() ;
-			inputMax = Tmax.getRealFloat() ;
-			final float range = inputMax - inputMin ;
-			scaleFactor = range >= 255f ? 1f : 255f/range;
-			
-			scaleFactorProcessed = true;
-		}
-		
-		return scaleFactor;
-	}
+
 	
 	@Override
 	protected void process()
@@ -133,9 +120,9 @@ public class HMaxima < T extends RealType<T> & NativeType<T> > extends DefaultLa
 		}
 		
 		
-		if( max-min < this.minNumberOfLevel ) {
-			input = this.duplicate(input );
-		}
+		//if( max-min < this.minNumberOfLevel ) {
+		//	input = this.duplicate(input );
+		//}
 		
 		
 		
@@ -350,15 +337,30 @@ public class HMaxima < T extends RealType<T> & NativeType<T> > extends DefaultLa
 		
 		//ImagePlus imp = IJ.openImage("F:\\projects\\blobs32.tif");
 		ImagePlus imp0 = IJ.openImage("C:/Users/Ben/workspace/testImages/sampleNoise_std50_blur10.tif"); //blobs32.tif");
+		//ImagePlus imp0 = IJ.openImage("C:/Users/Ben/workspace/testImages/blobs32.tif");
 		Img<FloatType> img = ImageJFunctions.wrap(imp0);
-		float threshold = 0.5f;
+		float threshold =  0.5f;
 		float hMin = 0.01f;
-		HMaxima<FloatType> labeler = new HMaxima<FloatType>( img, threshold, hMin);
-		RandomAccessibleInterval<IntType> output = labeler.getLabelMap();
+
+		HMaxima<FloatType> hlabeler = new HMaxima<FloatType>( img, threshold, hMin);
+		RandomAccessibleInterval<IntType> output = hlabeler.getLabelMap();
 		ImageJFunctions.wrap(output,"hmax").show();
 		
+		float AreaMin = 100;
+		AreaMaxima<FloatType> alabeler = new AreaMaxima<FloatType>( img, threshold, AreaMin);
+		RandomAccessibleInterval<IntType> output2 = alabeler.getLabelMap();
+		ImageJFunctions.wrap(output2,"amax").show();
 		
+		HWatershed<FloatType> hlabeler2 = new HWatershed<FloatType>( img);
+		hlabeler2.sethMin(hMin);
+		hlabeler2.setThreshold(threshold);
+		RandomAccessibleInterval<IntType> output3 = hlabeler2.getLabelMap();
+		ImageJFunctions.wrap(output3,"hws").show();
 		
+		SeededWatershed<FloatType,IntType> wslabeler = new SeededWatershed<FloatType,IntType>(img, output, threshold, SeededWatershed.WatershedConnectivity.FACE); 
+		RandomAccessibleInterval<IntType> output4 = wslabeler.getLabelMap();
+		ImageJFunctions.wrap(output4,"ws_seeded").show();
+
 	}
 	
 	

@@ -3,6 +3,7 @@ package invizio.imgalgo.label;
 
 import net.imglib2.Cursor;
 import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.algorithm.stats.ComputeMinMax;
 import net.imglib2.RandomAccess;
 import net.imglib2.img.array.ArrayImgFactory;
 import net.imglib2.img.cell.CellImgFactory;
@@ -173,6 +174,25 @@ public class DefaultLabelAlgorithm < T extends RealType<T> & NativeType<T> >  im
 
 	
 	
+	protected boolean scaleFactorProcessed = false;
+	protected float scaleFactor=1;
+	protected float offset=0;
+
+	protected void getScaleFactor() {
+		if( ! scaleFactorProcessed ) {
+			final T Tmin = input.randomAccess().get().createVariable();
+			final T Tmax = Tmin.createVariable();		
+			ComputeMinMax.computeMinMax( input, Tmin, Tmax);
+			float inputMin = Tmin.getRealFloat() ;
+			float inputMax = Tmax.getRealFloat() ;
+			final float range = inputMax - inputMin ;
+			
+			scaleFactor = range >= 255f ? 1f : 255f/range;
+			offset = -inputMin;
+			scaleFactorProcessed = true;
+		}
+		
+	}
 	
 	
 	
