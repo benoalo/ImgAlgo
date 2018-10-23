@@ -126,7 +126,7 @@ public class HMaxima < T extends RealType<T> & NativeType<T> > extends DefaultLa
 		
 		
 		
-		min = Math.max(min, threshold+1); // the threshold is excluded from the pixel that will be processed
+		min = Math.max((int)min, (int)threshold+1); // the threshold is excluded from the pixel that will be processed
 		
 		
 		
@@ -134,7 +134,7 @@ public class HMaxima < T extends RealType<T> & NativeType<T> > extends DefaultLa
 		// build an ordered list of the pixel ////////////////////////////////////////////////
 
 		 // get image histogram
-		int nlevel = (int) (max - min + 1);
+		int nlevel = (int)max - (int)min + 1;
         int[] histo_Int = new int[ nlevel ];
         
         // create a flat iterable cursor
@@ -147,7 +147,7 @@ public class HMaxima < T extends RealType<T> & NativeType<T> > extends DefaultLa
 
         while ( in_flatcursor.hasNext() )
 		{
-        	int level = (int)(in_flatcursor.next().getRealFloat() - min); 
+        	int level = (int)(in_flatcursor.next().getRealFloat() - (int)min); 
         	if(level>=0)
         	{
         		histo_Int[ level ]++;
@@ -168,7 +168,7 @@ public class HMaxima < T extends RealType<T> & NativeType<T> > extends DefaultLa
 
         while ( in_flatcursor.hasNext() )
         {
-        	int level = (int)(in_flatcursor.next().getRealFloat() - min);
+        	int level = (int)(in_flatcursor.next().getRealFloat() - (int)min);
         	if(level>=0)
         	{
         		Sorted_Pix[posInLevel[level]] = idx;
@@ -284,8 +284,7 @@ public class HMaxima < T extends RealType<T> & NativeType<T> > extends DefaultLa
     {
         if (parent[n] != n)
         {
-            parent[n] = FindRoot(parent[n]);
-            return parent[n];
+            return  FindRoot(parent[n]);
         }
         else { return n; }
     }
@@ -311,26 +310,6 @@ public class HMaxima < T extends RealType<T> & NativeType<T> > extends DefaultLa
 	
 	public static void main(final String... args) throws IOException
 	{
-		// 
-//		ImageJ ij = new ImageJ();
-//		ij.ui().showUI();
-//		Dataset dataset  = (Dataset) ij.io().open("F:\\projects\\blobs.tif");
-//		Img<ByteType> input = (Img<ByteType>) dataset.getImgPlus();
-//		
-//		int Hmin=10;
-//		int nIter=10;
-//		
-//		HMaxima labeler = new HMaxima();
-//		Img<IntType> output = null;
-//		for(int i=0; i<nIter; i++)
-//		{
-//			long start = System.nanoTime(); 
-//			output = labeler.getLabelMap(input, Hmin);
-//			long dt = System.nanoTime() - start;
-//			System.out.println( "dt = " + dt );
-//		}
-//		
-//		ij.ui().show(output);
 		
 		ImageJ ij = new ImageJ();
 		ij.ui().showUI();
@@ -340,7 +319,7 @@ public class HMaxima < T extends RealType<T> & NativeType<T> > extends DefaultLa
 		//ImagePlus imp0 = IJ.openImage("C:/Users/Ben/workspace/testImages/blobs32.tif");
 		Img<FloatType> img = ImageJFunctions.wrap(imp0);
 		float threshold =  0.5f;
-		float hMin = 0.01f;
+		float hMin = 0.5f;
 
 		HMaxima<FloatType> hlabeler = new HMaxima<FloatType>( img, threshold, hMin);
 		RandomAccessibleInterval<IntType> output = hlabeler.getLabelMap();
@@ -354,6 +333,7 @@ public class HMaxima < T extends RealType<T> & NativeType<T> > extends DefaultLa
 		HWatershed<FloatType> hlabeler2 = new HWatershed<FloatType>( img);
 		hlabeler2.sethMin(hMin);
 		hlabeler2.setThreshold(threshold);
+		hlabeler2.allowSpliting(false);
 		RandomAccessibleInterval<IntType> output3 = hlabeler2.getLabelMap();
 		ImageJFunctions.wrap(output3,"hws").show();
 		

@@ -23,6 +23,7 @@ import net.imglib2.img.display.imagej.ImageJFunctions;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.numeric.integer.IntType;
+import net.imglib2.type.numeric.real.AbstractRealType;
 import net.imglib2.type.numeric.real.FloatType;
 import net.imglib2.view.Views;
 
@@ -103,7 +104,6 @@ public class HWatershedHierarchy <T extends RealType<T> & NativeType<T>> extends
 	
 	protected void process()
 	{
-		//ProgressDialog.reset();
 		
 		//////////////////////////////////////////////////////////////////////
 		// initialisation ////////////////////////////////////////////////////

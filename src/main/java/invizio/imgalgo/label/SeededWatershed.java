@@ -15,6 +15,7 @@ import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.numeric.integer.IntType;
+import net.imglib2.type.numeric.real.AbstractRealType;
 import net.imglib2.type.numeric.real.FloatType;
 import net.imglib2.view.Views;
 import ij.IJ;
@@ -117,7 +118,7 @@ public class SeededWatershed < T extends RealType<T> & NativeType<T>, U extends 
 		min = Math.max(min, threshold);
 		
 		// create a priority queue
-		HierarchicalFIFO Q = new HierarchicalFIFO( min, max, (int)Math.max(this.minNumberOfLevel, max-min));
+		HierarchicalFIFO Q = new HierarchicalFIFO( (int)min, (int)max, (int)Math.max(this.minNumberOfLevel, (int)max-(int)min));
 		
 		
 		
