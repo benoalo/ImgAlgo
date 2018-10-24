@@ -1,18 +1,21 @@
 package invizio.imgalgo.label;
 
 import invizio.imgalgo.util.Pixel;
+import invizio.imgalgo.util.RAI;
 import net.imglib2.Cursor;
 import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.img.array.ArrayImg;
 import net.imglib2.img.basictypeaccess.IntAccess;
 import net.imglib2.img.basictypeaccess.array.IntArray;
+import net.imglib2.img.display.imagej.ImageJFunctions;
 import net.imglib2.outofbounds.OutOfBounds;
 import net.imglib2.outofbounds.OutOfBoundsConstantValueFactory;
 import net.imglib2.outofbounds.OutOfBoundsFactory;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.numeric.integer.IntType;
+import net.imglib2.type.numeric.real.AbstractRealType;
 import net.imglib2.util.Fraction;
 import net.imglib2.view.Views;
 
@@ -54,30 +57,41 @@ public class AreaMaxima < T extends RealType<T> & NativeType<T> > extends Defaul
 	
 	public AreaMaxima(RandomAccessibleInterval<T> input, float threshold, float AreaMin) {
 		
-		super( input ); // note that data are converted to integerType
+		super( input );
 		
+		T sample = input.randomAccess().get().createVariable();
+		this.getScaleFactor();
+		if( scaleFactor>1 && sample instanceof AbstractRealType)
+			this.input = RAI.scale( input , scaleFactor, offset );
+		
+		//ImageJFunctions.wrap(this.input, "test").show();
+		
+		this.threshold = (threshold+offset)*scaleFactor;
 		this.AreaThresh = AreaMin;
-		this.threshold = threshold;
+		//System.out.println("Threshold:"+this.threshold);
+		//System.out.println("AreaThreshold:"+this.AreaThresh);
+		//System.out.println("offset:"+this.offset);
+		//System.out.println("scalefactor:"+this.scaleFactor);
+		
+		
 		
 	}
 	
 	@Override
 	protected void process()
 	{
-		
+				
 		long numPixel = Views.iterable( input ).size();
 		int ndim = input.numDimensions();
  		long[] dimensions = new long[ndim];
  		input.dimensions(dimensions);
-		
-		//////////////////////////////////////////////////////////////////////////////////////
-		// build an ordered list of the pixel ////////////////////////////////////////////////
-		
-		// get image min and max
+ 		
+ 		// get image min and max
 		Cursor<T> in_cursor = Views.iterable( input ).cursor();
 		float aux = in_cursor.next().getRealFloat();
 		float min = aux;
 		float max = aux;
+
 		while ( in_cursor.hasNext() )
 		{
 			float val = in_cursor.next().getRealFloat();
@@ -85,21 +99,35 @@ public class AreaMaxima < T extends RealType<T> & NativeType<T> > extends Defaul
 			else if( val>max ){  max = val;  }
 		}
 		
-		min = Math.max(min, threshold+1);
 		
-		// get image histogram
-		int nlevel = (int) (max - min + 1);
+		//if( max-min < this.minNumberOfLevel ) {
+		//	input = this.duplicate(input );
+		//}
+		
+		
+		
+		min = Math.max((int)min, (int)threshold+1); // the threshold is excluded from the pixel that will be processed
+		
+		
+		
+		//////////////////////////////////////////////////////////////////////////////////////
+		// build an ordered list of the pixel ////////////////////////////////////////////////
+
+		 // get image histogram
+		int nlevel = (int)max - (int)min + 1;
         int[] histo_Int = new int[ nlevel ];
         
         // create a flat iterable cursor
-//        long[] minindim = new long[ ndim ], maxindim = new long[ ndim ];
+// 		long[] minindim = new long[ ndim ], maxindim = new long[ ndim ];
 //        for ( int d = 0; d < ndim; ++d ){   minindim[ d ] = 0 ;    maxindim[ d ] = dimensions[d] - 1 ;  }
 //        FinalInterval interval = new FinalInterval( minindim, maxindim );
         
         final Cursor< T > in_flatcursor = Views.flatIterable( Views.interval( input, input)).cursor();
+        
+
         while ( in_flatcursor.hasNext() )
 		{
-        	int level = (int)(in_flatcursor.next().getRealFloat() - min);
+        	int level = (int)(in_flatcursor.next().getRealFloat() - (int)min); 
         	if(level>=0)
         	{
         		histo_Int[ level ]++;
@@ -116,9 +144,11 @@ public class AreaMaxima < T extends RealType<T> & NativeType<T> > extends Defaul
         int[] Sorted_Pix = new int[(int) numPixel];
         in_flatcursor.reset(); 
         int idx = 0; 
+        
+
         while ( in_flatcursor.hasNext() )
         {
-        	int level = (int)(in_flatcursor.next().getRealFloat() - min);
+        	int level = (int)(in_flatcursor.next().getRealFloat() - (int)min);
         	if(level>=0)
         	{
         		Sorted_Pix[posInLevel[level]] = idx;
@@ -132,7 +162,7 @@ public class AreaMaxima < T extends RealType<T> & NativeType<T> > extends Defaul
 
 		
 		// define image dealing with out of bound
- 		T outOfBoundValue = input.randomAccess().get().createVariable();
+        T outOfBoundValue = input.randomAccess().get().createVariable();
  		final OutOfBoundsFactory< T, RandomAccessibleInterval< T >> oobImageFactory =  new OutOfBoundsConstantValueFactory< T, RandomAccessibleInterval< T >>( outOfBoundValue );
  		final OutOfBounds< T > input_X = oobImageFactory.create( input );
  		RandomAccess<T> input_RA = input.randomAccess();
@@ -153,9 +183,9 @@ public class AreaMaxima < T extends RealType<T> & NativeType<T> > extends Defaul
  		for( int i = 0; i < is_ActivePeak.length; i++){  is_ActivePeak[i] = false;}
  		criteria = new int[(int) numPixel ];
  		
-		for(int pidx: Sorted_Pix)
+ 		for(int pidx: Sorted_Pix)
 		{
-			Pixel.getPosFromIdx( pidx, position, dimensions);
+			Pixel.getPosFromIdx(pidx, position, dimensions);//getPosFromIdx( pidx, dimensions, position);
 			input_X.setPosition(position);
 			pval = (int)input_X.get().getRealFloat();
 			
@@ -175,7 +205,7 @@ public class AreaMaxima < T extends RealType<T> & NativeType<T> > extends Defaul
 				nval = (int)input_X.get().getRealFloat();
 				nidx = pidx + n_offset[i];
 				
-				if ( (pval < nval)  |  ((pval == nval) & (nidx < pidx)) ) // test if n was already processed processed
+				if ( (pval < nval)  |  ((pval == nval) & (nidx < pidx)) ) // test if n was already processed 
 				{	
 					ridx = FindRoot(nidx);
 					if( ridx == pidx) { continue; }
@@ -185,40 +215,33 @@ public class AreaMaxima < T extends RealType<T> & NativeType<T> > extends Defaul
 						continue;
 					}
 					
-					Pixel.getPosFromIdx( ridx, position, dimensions);
+					Pixel.getPosFromIdx(ridx, position, dimensions);//getPosFromIdx( ridx, dimensions, position);
 					input_RA.setPosition(position);
 					rval = (int)input_RA.get().getRealFloat();
 					
 					union(ridx, pidx, rval, pval, AreaThresh);
-					
-					
+									
 				}
-			}
-			
+			}	
 		}
-		
-		// i would like to label all the peaks whose area is at least Area 
 		
 		// label the image
 		int current_label=1;
 		for (int i = Sorted_Pix.length - 1; i >= 0; i--)
         {
-            idx = Sorted_Pix[i];
-            if ( parent[idx] != idx )
+			idx = Sorted_Pix[i];
+            if ( parent[idx] != idx ) {
                 parent[idx] = parent[parent[idx]];
-            else
-            { 
-            	if( is_ActivePeak[idx] && criteria[idx]>=AreaThresh)
-            	{
-            		//parent_area[idx] = crit_area[idx]; // to color with the peak volume
+            }
+            else{ 
+            	if( is_ActivePeak[idx] & criteria[idx]>=AreaThresh){
+            		//parent[idx] = criteria[idx]; // to color with the peak volume
             		parent[idx] = current_label; // to color with label
             		current_label++;
             	}
-            	else
-            	{
+            	else{
             		parent[idx] = 0;
-            	}
-            	
+            	}           	
             }
         }
 		numberOfLabels = current_label-1;
@@ -232,8 +255,10 @@ public class AreaMaxima < T extends RealType<T> & NativeType<T> > extends Defaul
 		array.setLinkedType( linkedType );	
 		
 		labelMap = array;
-		
+
 		return;
+
+	
 	}
 	
 	
@@ -241,8 +266,7 @@ public class AreaMaxima < T extends RealType<T> & NativeType<T> > extends Defaul
     {
         if (parent[n] != n)
         {
-            parent[n] = FindRoot(parent[n]);
-            return parent[n];
+            return FindRoot(parent[n]);
         }
         else { return n; }
     }
@@ -256,6 +280,7 @@ public class AreaMaxima < T extends RealType<T> & NativeType<T> > extends Defaul
 			criteria[r]=0;
 			parent[r] = p;
 			is_ActivePeak[r] = false;
+			//System.out.println("criteria: "+ criteria[p] + "  ;  valp: "+valp);
 		}
 		else // without this else. a new region are restarted indefinitely when previous one reaches the max Area 
 		  is_ActivePeak[p]=false;  

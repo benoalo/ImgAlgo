@@ -3,17 +3,23 @@ package invizio.imgalgo.label;
 
 import java.io.IOException;
 
+import ij.IJ;
+import ij.ImagePlus;
 import invizio.imgalgo.util.Pixel;
+import invizio.imgalgo.util.RAI;
+import net.imagej.ImageJ;
 import net.imglib2.Cursor;
 //import net.imglib2.FinalInterval;
 
 import net.imglib2.RandomAccess;
 
 import net.imglib2.RandomAccessibleInterval;
-
+import net.imglib2.algorithm.stats.ComputeMinMax;
+import net.imglib2.img.Img;
 import net.imglib2.img.array.ArrayImg;
 import net.imglib2.img.basictypeaccess.IntAccess;
 import net.imglib2.img.basictypeaccess.array.IntArray;
+import net.imglib2.img.display.imagej.ImageJFunctions;
 import net.imglib2.outofbounds.OutOfBounds;
 import net.imglib2.outofbounds.OutOfBoundsConstantValueFactory;
 import net.imglib2.outofbounds.OutOfBoundsFactory;
@@ -21,6 +27,8 @@ import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.RealType;
 
 import net.imglib2.type.numeric.integer.IntType;
+import net.imglib2.type.numeric.real.AbstractRealType;
+import net.imglib2.type.numeric.real.FloatType;
 import net.imglib2.util.Fraction;
 import net.imglib2.view.Views;
 
@@ -64,14 +72,30 @@ public class HMaxima < T extends RealType<T> & NativeType<T> > extends DefaultLa
 	int[] criteria;
 	
 	
+	//private float scaleFactor = 1;
+	//private float offset = 0;
+	//private float inputMin=0;
+	//private float inputMax=0;
+	//private boolean scaleFactorProcessed = false;
+	
+	
 	public HMaxima(RandomAccessibleInterval<T> input, float threshold, float Hmin) {
 		
 		super( input );
 		
-		this.Hmin = Hmin;
-		this.threshold = threshold;
+		T sample = input.randomAccess().get().createVariable();
+		this.getScaleFactor();
+		if( scaleFactor>1 && sample instanceof AbstractRealType)
+			this.input = RAI.scale( input , scaleFactor, offset );
+			
+		this.Hmin = Hmin*scaleFactor;
+		this.threshold = (threshold+offset)*scaleFactor;
 		
 	}
+	
+	
+	
+
 	
 	@Override
 	protected void process()
@@ -95,7 +119,14 @@ public class HMaxima < T extends RealType<T> & NativeType<T> > extends DefaultLa
 			else if( val>max ){  max = val;  }
 		}
 		
-		min = Math.max(min, threshold+1); // the threshold is excluded from the pixel that will be processed
+		
+		//if( max-min < this.minNumberOfLevel ) {
+		//	input = this.duplicate(input );
+		//}
+		
+		
+		
+		min = Math.max((int)min, (int)threshold+1); // the threshold is excluded from the pixel that will be processed
 		
 		
 		
@@ -103,7 +134,7 @@ public class HMaxima < T extends RealType<T> & NativeType<T> > extends DefaultLa
 		// build an ordered list of the pixel ////////////////////////////////////////////////
 
 		 // get image histogram
-		int nlevel = (int) (max - min + 1);
+		int nlevel = (int)max - (int)min + 1;
         int[] histo_Int = new int[ nlevel ];
         
         // create a flat iterable cursor
@@ -116,7 +147,7 @@ public class HMaxima < T extends RealType<T> & NativeType<T> > extends DefaultLa
 
         while ( in_flatcursor.hasNext() )
 		{
-        	int level = (int)(in_flatcursor.next().getRealFloat() - min); 
+        	int level = (int)(in_flatcursor.next().getRealFloat() - (int)min); 
         	if(level>=0)
         	{
         		histo_Int[ level ]++;
@@ -137,7 +168,7 @@ public class HMaxima < T extends RealType<T> & NativeType<T> > extends DefaultLa
 
         while ( in_flatcursor.hasNext() )
         {
-        	int level = (int)(in_flatcursor.next().getRealFloat() - min);
+        	int level = (int)(in_flatcursor.next().getRealFloat() - (int)min);
         	if(level>=0)
         	{
         		Sorted_Pix[posInLevel[level]] = idx;
@@ -253,8 +284,7 @@ public class HMaxima < T extends RealType<T> & NativeType<T> > extends DefaultLa
     {
         if (parent[n] != n)
         {
-            parent[n] = FindRoot(parent[n]);
-            return parent[n];
+            return  FindRoot(parent[n]);
         }
         else { return n; }
     }
@@ -280,31 +310,37 @@ public class HMaxima < T extends RealType<T> & NativeType<T> > extends DefaultLa
 	
 	public static void main(final String... args) throws IOException
 	{
-		// 
-//		ImageJ ij = new ImageJ();
-//		ij.ui().showUI();
-//		Dataset dataset  = (Dataset) ij.io().open("F:\\projects\\blobs.tif");
-//		Img<ByteType> input = (Img<ByteType>) dataset.getImgPlus();
-//		
-//		int Hmin=10;
-//		int nIter=10;
-//		
-//		HMaxima labeler = new HMaxima();
-//		Img<IntType> output = null;
-//		for(int i=0; i<nIter; i++)
-//		{
-//			long start = System.nanoTime(); 
-//			output = labeler.getLabelMap(input, Hmin);
-//			long dt = System.nanoTime() - start;
-//			System.out.println( "dt = " + dt );
-//		}
-//		
-//		ij.ui().show(output);
 		
+		ImageJ ij = new ImageJ();
+		ij.ui().showUI();
 		
+		//ImagePlus imp = IJ.openImage("F:\\projects\\blobs32.tif");
+		ImagePlus imp0 = IJ.openImage("C:/Users/Ben/workspace/testImages/sampleNoise_std50_blur10.tif"); //blobs32.tif");
+		//ImagePlus imp0 = IJ.openImage("C:/Users/Ben/workspace/testImages/blobs32.tif");
+		Img<FloatType> img = ImageJFunctions.wrap(imp0);
+		float threshold =  0.5f;
+		float hMin = 0.5f;
+
+		HMaxima<FloatType> hlabeler = new HMaxima<FloatType>( img, threshold, hMin);
+		RandomAccessibleInterval<IntType> output = hlabeler.getLabelMap();
+		ImageJFunctions.wrap(output,"hmax").show();
 		
+		float AreaMin = 100;
+		AreaMaxima<FloatType> alabeler = new AreaMaxima<FloatType>( img, threshold, AreaMin);
+		RandomAccessibleInterval<IntType> output2 = alabeler.getLabelMap();
+		ImageJFunctions.wrap(output2,"amax").show();
 		
+		HWatershed<FloatType> hlabeler2 = new HWatershed<FloatType>( img);
+		hlabeler2.sethMin(hMin);
+		hlabeler2.setThreshold(threshold);
+		hlabeler2.allowSpliting(false);
+		RandomAccessibleInterval<IntType> output3 = hlabeler2.getLabelMap();
+		ImageJFunctions.wrap(output3,"hws").show();
 		
+		SeededWatershed<FloatType,IntType> wslabeler = new SeededWatershed<FloatType,IntType>(img, output, threshold, SeededWatershed.WatershedConnectivity.FACE); 
+		RandomAccessibleInterval<IntType> output4 = wslabeler.getLabelMap();
+		ImageJFunctions.wrap(output4,"ws_seeded").show();
+
 	}
 	
 	

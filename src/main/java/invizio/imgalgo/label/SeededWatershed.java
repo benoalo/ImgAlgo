@@ -15,6 +15,7 @@ import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.numeric.integer.IntType;
+import net.imglib2.type.numeric.real.AbstractRealType;
 import net.imglib2.type.numeric.real.FloatType;
 import net.imglib2.view.Views;
 import ij.IJ;
@@ -64,46 +65,22 @@ public class SeededWatershed < T extends RealType<T> & NativeType<T>, U extends 
 	float threshold = 0;
 	WatershedConnectivity connectivity = WatershedConnectivity.FACE;
 	
-	private float scaleFactor = 1;
-	private float offset = 0;
-	private float inputMin=0;
-	private float inputMax=0;
-	private boolean scaleFactorProcessed = false;
-	
-	
 	
 	public SeededWatershed( RandomAccessibleInterval<T> input, RandomAccessibleInterval<U> seed, float threshold, WatershedConnectivity connectivity) {
 		
 		super( input );
 		
-		scaleFactor = getScaleFactor();
-		offset = -inputMin;
+		this.getScaleFactor();
 		labelMap = RAI.convertToInteger( input , scaleFactor, offset );
 		
 		this.seed = seed;
-		this.threshold = threshold;
+		this.threshold = (threshold+offset)*scaleFactor;
 		this.connectivity = connectivity;
 		
 	}
 	
 	
-	private float getScaleFactor() {
-		
-		if( ! scaleFactorProcessed ) {
-			
-			final T Tmin = input.randomAccess().get().createVariable();
-			final T Tmax = Tmin.createVariable();		
-			ComputeMinMax.computeMinMax( input, Tmin, Tmax);
-			inputMin = Tmin.getRealFloat() ;
-			inputMax = Tmax.getRealFloat() ;
-			final float range = inputMax - inputMin ;
-			scaleFactor = range >= 255f ? 1f : 255f/range;
-			
-			scaleFactorProcessed = true;
-		}
-		
-		return scaleFactor;
-	}
+	
 	
 	
 	// 2016-06-02 (thresh=100, seed=Hmaximax  with h=5)
@@ -141,7 +118,7 @@ public class SeededWatershed < T extends RealType<T> & NativeType<T>, U extends 
 		min = Math.max(min, threshold);
 		
 		// create a priority queue
-		HierarchicalFIFO Q = new HierarchicalFIFO( min, max, (int)Math.max(255, max-min));
+		HierarchicalFIFO Q = new HierarchicalFIFO( (int)min, (int)max, (int)Math.max(this.minNumberOfLevel, (int)max-(int)min));
 		
 		
 		
@@ -340,18 +317,16 @@ public class SeededWatershed < T extends RealType<T> & NativeType<T>, U extends 
 		//Dataset data = (Dataset) ij.io().open("F:\\projects\\blobs32.tif");
 		//Img<FloatType> img = (Img<FloatType>) data.getImgPlus();
 		
-		ImagePlus imp = IJ.openImage("F:\\projects\\blobs32.tif");
+		ImagePlus imp0 = IJ.openImage("C:/Users/Ben/workspace/testImages/sampleNoise_std50_blur10.tif"); //blobs32.tif");
+		Img<FloatType> img = ImageJFunctions.wrap(imp0);
+		float threshold = 0.5f;
+		float hMin = 0.01f;
 		
-		ij.ui().show(imp);
-		
-		Img<FloatType> img = ImageJFunctions.wrap(imp);
-
-		HMaxima<FloatType> maxima = new HMaxima<FloatType>( img, 100, 10 );
+		HMaxima<FloatType> maxima = new HMaxima<FloatType>( img, threshold, hMin );
 		RandomAccessibleInterval<IntType> seeds = maxima.getLabelMap();
 		
 		ij.ui().show(seeds);
 		
-		float threshold = 50;
 		SeededWatershed<FloatType,IntType> watershed = new SeededWatershed<FloatType,IntType>( img , seeds, threshold, WatershedConnectivity.FACE );
 		
 		RandomAccessibleInterval<IntType> labelMap = watershed.getLabelMap();
