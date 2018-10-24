@@ -5,7 +5,7 @@ import java.util.List;
 import java.util.concurrent.Future;
 
 import invizio.imgalgo.label.RleCCL_multithreaded;
-import invizio.imgalgo.label.RleCCL_multithreaded2;
+//import invizio.imgalgo.label.RleCCL_multithreaded2;
 import net.imglib2.AbstractInterval;
 import net.imglib2.Interval;
 import net.imglib2.type.NativeType;
@@ -27,7 +27,7 @@ public class Chunck < T extends RealType<T> & NativeType<T> > extends AbstractIn
 	
 	public int id = -1;
 	public RleCCL_multithreaded<T>.RleWorker worker;
-	public RleCCL_multithreaded2<T>.RleWorker worker2;
+	//public RleCCL_multithreaded2<T>.RleWorker worker2;
 	
 	public int val;
 	public int cutDim = -1;
