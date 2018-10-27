@@ -305,46 +305,44 @@ public class RleCCL < T extends RealType<T> & NativeType<T> > extends DefaultLab
 		//Img<FloatType> img = (Img<FloatType>) dataset.getImgPlus();
 		//Img<FloatType> img2 = ij.op().convert().float32( img );
 		//Img<FloatType> img =ImageJFunctions.wrap( IJ.openImage("C:/Users/Ben/workspace/testImages/blobs32.tif") );
-		Img<FloatType> img =ImageJFunctions.wrap( IJ.openImage("F:/projects/2DEmbryoSection_Mette_contourMaskInv.tif") );
+		//Img<FloatType> img =ImageJFunctions.wrap( IJ.openImage("F:/projects/2DEmbryoSection_Mette_contourMaskInv.tif") );
+		Img<FloatType> img = ImageJFunctions.wrap( IJ.openImage("C:/Users/Ben/workspace/testImages/noise2000_std50_blur10.tif") );
 		
 		//img = (Img<FloatType>) ij.op().math().multiply( img, new FloatType(-1) );
 		
 		
 		float threshold = 0.5f;
-		int nIter=1;
+		int nIter=20;
+		int nWarmup=10;
 		
 		long dt1 = 0;
-		long min_dt1 = Long.MAX_VALUE;
 		RleCCL<FloatType> labeler1 = null;
 		RandomAccessibleInterval<IntType> labelMap1 = null;
 		for(int i=0 ; i<nIter ; i++) 
 		{
 			labeler1 = new RleCCL<FloatType>( img , threshold);
 			labelMap1 = labeler1.getLabelMap();
-			long dt = labeler1.getProcessTime();
-			dt1 += dt;
-			min_dt1 = min_dt1 > dt ? dt : min_dt1;
-			//System.out.println("iter "+ i + ": " + dt );
+			if(i>=nWarmup) {
+				long dt = labeler1.getProcessTime();
+				dt1 += dt;
+			}
 		}
-		System.out.println("dt1 " + (dt1/nIter));
-		System.out.println("min1 " + (min_dt1));
+		System.out.println("dt1 " + (dt1/(nIter-nWarmup)));
 
 		
 		long dt2 = 0;
-		long min_dt2 = Long.MAX_VALUE;
 		CCL<FloatType> labeler2 = null;
 		RandomAccessibleInterval<IntType> labelMap2 = null;
 		for(int i=0 ; i<nIter ; i++) 
 		{
 			labeler2 = new CCL<FloatType>( img , threshold);
 			labelMap2 = labeler2.getLabelMap();
-			long dt = labeler2.getProcessTime();
-			dt2 += dt;
-			min_dt2 = min_dt2 > dt ? dt : min_dt2;
-			//System.out.println("iter "+ i + ": " + dt );
+			if(i>=nWarmup) {
+				long dt = labeler2.getProcessTime();
+				dt2 += dt;
+			}
 		}
-		System.out.println("dt2 " + (dt2/nIter));
-		System.out.println("min2 " + (min_dt2));
+		System.out.println("dt2 " + (dt2/(nIter-nWarmup)));
 
 		
 		//ImageJFunctions.wrap(img, "image").show();
