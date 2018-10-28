@@ -61,7 +61,7 @@ public class AreaMaxima < T extends RealType<T> & NativeType<T> > extends Defaul
 		
 		T sample = input.randomAccess().get().createVariable();
 		this.getScaleFactor();
-		if( scaleFactor>1 && sample instanceof AbstractRealType)
+		if( scaleFactor>1) //&& sample instanceof AbstractRealType)
 			this.input = RAI.scale( input , scaleFactor, offset );
 		
 		//ImageJFunctions.wrap(this.input, "test").show();
@@ -107,7 +107,7 @@ public class AreaMaxima < T extends RealType<T> & NativeType<T> > extends Defaul
 		
 		
 		min = Math.max((int)min, (int)threshold+1); // the threshold is excluded from the pixel that will be processed
-		
+		max = Math.max(min, max);
 		
 		
 		//////////////////////////////////////////////////////////////////////////////////////
@@ -127,7 +127,7 @@ public class AreaMaxima < T extends RealType<T> & NativeType<T> > extends Defaul
 
         while ( in_flatcursor.hasNext() )
 		{
-        	int level = (int)(in_flatcursor.next().getRealFloat() - (int)min); 
+        	int level = ((int)in_flatcursor.next().getRealFloat() - (int)min); 
         	if(level>=0)
         	{
         		histo_Int[ level ]++;
@@ -148,7 +148,7 @@ public class AreaMaxima < T extends RealType<T> & NativeType<T> > extends Defaul
 
         while ( in_flatcursor.hasNext() )
         {
-        	int level = (int)(in_flatcursor.next().getRealFloat() - (int)min);
+        	int level = ((int)in_flatcursor.next().getRealFloat() - (int)min);
         	if(level>=0)
         	{
         		Sorted_Pix[posInLevel[level]] = idx;
@@ -234,7 +234,7 @@ public class AreaMaxima < T extends RealType<T> & NativeType<T> > extends Defaul
                 parent[idx] = parent[parent[idx]];
             }
             else{ 
-            	if( is_ActivePeak[idx] & criteria[idx]>=AreaThresh){
+            	if( criteria[idx]>=AreaThresh){
             		//parent[idx] = criteria[idx]; // to color with the peak volume
             		parent[idx] = current_label; // to color with label
             		current_label++;
@@ -274,7 +274,8 @@ public class AreaMaxima < T extends RealType<T> & NativeType<T> > extends Defaul
 	
 	private void union(int r, int p, int valr, int valp, float AreaThresh)
 	{
-		if (  ( valr == valp )  |  ( criteria[r]<AreaThresh )  )
+		int cr = criteria[r];
+		if (  ( valr == valp && cr<=AreaThresh)  |  ( cr<AreaThresh )  )
 		{
 			criteria[p] = criteria[p] + criteria[r];
 			criteria[r]=0;

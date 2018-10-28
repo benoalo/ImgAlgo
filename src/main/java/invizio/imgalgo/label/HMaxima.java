@@ -85,11 +85,13 @@ public class HMaxima < T extends RealType<T> & NativeType<T> > extends DefaultLa
 		
 		T sample = input.randomAccess().get().createVariable();
 		this.getScaleFactor();
-		if( scaleFactor>1 && sample instanceof AbstractRealType)
+		if( scaleFactor>1) // && sample instanceof AbstractRealType)
 			this.input = RAI.scale( input , scaleFactor, offset );
-			
-		this.Hmin = Hmin*scaleFactor;
-		this.threshold = (threshold+offset)*scaleFactor;
+		
+		//ImageJFunctions.wrap(this.input,"input").show();
+		
+		this.Hmin = (int)(Hmin*scaleFactor);
+		this.threshold = (int)((threshold+offset)*scaleFactor);
 		
 	}
 	
@@ -127,7 +129,7 @@ public class HMaxima < T extends RealType<T> & NativeType<T> > extends DefaultLa
 		
 		
 		min = Math.max((int)min, (int)threshold+1); // the threshold is excluded from the pixel that will be processed
-		
+		max = Math.max((int)min, (int)max);
 		
 		
 		//////////////////////////////////////////////////////////////////////////////////////
@@ -147,7 +149,7 @@ public class HMaxima < T extends RealType<T> & NativeType<T> > extends DefaultLa
 
         while ( in_flatcursor.hasNext() )
 		{
-        	int level = (int)(in_flatcursor.next().getRealFloat() - (int)min); 
+        	int level = ((int)in_flatcursor.next().getRealFloat() - (int)min); 
         	if(level>=0)
         	{
         		histo_Int[ level ]++;
@@ -168,7 +170,7 @@ public class HMaxima < T extends RealType<T> & NativeType<T> > extends DefaultLa
 
         while ( in_flatcursor.hasNext() )
         {
-        	int level = (int)(in_flatcursor.next().getRealFloat() - (int)min);
+        	int level = ((int)in_flatcursor.next().getRealFloat() - (int)min);
         	if(level>=0)
         	{
         		Sorted_Pix[posInLevel[level]] = idx;
@@ -254,7 +256,7 @@ public class HMaxima < T extends RealType<T> & NativeType<T> > extends DefaultLa
                 parent[idx] = parent[parent[idx]];
             }
             else{ 
-            	if( is_ActivePeak[idx] & criteria[idx]>=Hmin){
+            	if(  criteria[idx]>=Hmin){
             		//parent[idx] = criteria[idx]; // to color with the peak volume
             		parent[idx] = current_label; // to color with label
             		current_label++;
@@ -292,12 +294,15 @@ public class HMaxima < T extends RealType<T> & NativeType<T> > extends DefaultLa
 	
 	private void union(int r, int p, int valr, int valp, float Hmin)
 	{
-		if (  ( valr == valp )  |  ( criteria[r]<Hmin )  )
+		final int cr = criteria[r];
+		if (  ( valr==valp  && cr<=Hmin )  |  ( cr<Hmin )  )
 		{
-			criteria[p] = Math.max(criteria[p], criteria[r] + valr - valp)  ;
+			criteria[p] = Math.max(criteria[p], cr + valr - valp)  ;
 			criteria[r]=0;
 			parent[r] = p;
 			is_ActivePeak[r] = false;
+			
+			//System.out.println("valp:"+valp+"  ;  valr:"+valr+"  ;  critp:"+criteria[p]+"  ;  critr:"+criteria[r]);
 		}
 		else // without this else. a new region are restarted indefinitely when previous one reaches the max Area 
 			is_ActivePeak[p]=false;  
@@ -323,9 +328,9 @@ public class HMaxima < T extends RealType<T> & NativeType<T> > extends DefaultLa
 
 		HMaxima<FloatType> hlabeler = new HMaxima<FloatType>( img, threshold, hMin);
 		RandomAccessibleInterval<IntType> output = hlabeler.getLabelMap();
-		ImageJFunctions.wrap(output,"hmax").show();
+		//ImageJFunctions.wrap(output,"hmax").show();
 		
-		float AreaMin = 100;
+		float AreaMin = 250;
 		AreaMaxima<FloatType> alabeler = new AreaMaxima<FloatType>( img, threshold, AreaMin);
 		RandomAccessibleInterval<IntType> output2 = alabeler.getLabelMap();
 		ImageJFunctions.wrap(output2,"amax").show();
@@ -335,11 +340,11 @@ public class HMaxima < T extends RealType<T> & NativeType<T> > extends DefaultLa
 		hlabeler2.setThreshold(threshold);
 		hlabeler2.allowSpliting(false);
 		RandomAccessibleInterval<IntType> output3 = hlabeler2.getLabelMap();
-		ImageJFunctions.wrap(output3,"hws").show();
+		//ImageJFunctions.wrap(output3,"hws").show();
 		
 		SeededWatershed<FloatType,IntType> wslabeler = new SeededWatershed<FloatType,IntType>(img, output, threshold, SeededWatershed.WatershedConnectivity.FACE); 
 		RandomAccessibleInterval<IntType> output4 = wslabeler.getLabelMap();
-		ImageJFunctions.wrap(output4,"ws_seeded").show();
+		//ImageJFunctions.wrap(output4,"ws_seeded").show();
 
 	}
 	
