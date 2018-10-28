@@ -234,7 +234,7 @@ public class AreaMaxima < T extends RealType<T> & NativeType<T> > extends Defaul
                 parent[idx] = parent[parent[idx]];
             }
             else{ 
-            	if( criteria[idx]>=AreaThresh){
+            	if( is_ActivePeak[idx] && criteria[idx]>=AreaThresh){
             		//parent[idx] = criteria[idx]; // to color with the peak volume
             		parent[idx] = current_label; // to color with label
             		current_label++;

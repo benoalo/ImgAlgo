@@ -256,7 +256,7 @@ public class HMaxima < T extends RealType<T> & NativeType<T> > extends DefaultLa
                 parent[idx] = parent[parent[idx]];
             }
             else{ 
-            	if(  criteria[idx]>=Hmin){
+            	if( is_ActivePeak[idx] && criteria[idx]>=Hmin){
             		//parent[idx] = criteria[idx]; // to color with the peak volume
             		parent[idx] = current_label; // to color with label
             		current_label++;
@@ -320,20 +320,20 @@ public class HMaxima < T extends RealType<T> & NativeType<T> > extends DefaultLa
 		ij.ui().showUI();
 		
 		//ImagePlus imp = IJ.openImage("F:\\projects\\blobs32.tif");
-		ImagePlus imp0 = IJ.openImage("C:/Users/Ben/workspace/testImages/sampleNoise_std50_blur10.tif"); //blobs32.tif");
-		//ImagePlus imp0 = IJ.openImage("C:/Users/Ben/workspace/testImages/blobs32.tif");
+		//ImagePlus imp0 = IJ.openImage("C:/Users/Ben/workspace/testImages/sampleNoise_std50_blur10.tif"); //blobs32.tif");
+		ImagePlus imp0 = IJ.openImage("C:/Users/Ben/workspace/testImages/blobs32.tif");
 		Img<FloatType> img = ImageJFunctions.wrap(imp0);
-		float threshold =  0.5f;
-		float hMin = 0.5f;
+		float threshold =  100f;
+		float hMin = 9f;
 
 		HMaxima<FloatType> hlabeler = new HMaxima<FloatType>( img, threshold, hMin);
 		RandomAccessibleInterval<IntType> output = hlabeler.getLabelMap();
-		//ImageJFunctions.wrap(output,"hmax").show();
+		ImageJFunctions.wrap(output,"hmax").show();
 		
 		float AreaMin = 250;
 		AreaMaxima<FloatType> alabeler = new AreaMaxima<FloatType>( img, threshold, AreaMin);
 		RandomAccessibleInterval<IntType> output2 = alabeler.getLabelMap();
-		ImageJFunctions.wrap(output2,"amax").show();
+		//ImageJFunctions.wrap(output2,"amax").show();
 		
 		HWatershed<FloatType> hlabeler2 = new HWatershed<FloatType>( img);
 		hlabeler2.sethMin(hMin);
