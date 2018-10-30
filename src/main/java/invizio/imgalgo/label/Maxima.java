@@ -1,19 +1,24 @@
 package invizio.imgalgo.label;
 
-import invizio.imgalgo.util.Pixel;
+import java.io.IOException;
 
+import ij.IJ;
+import invizio.imgalgo.util.Pixel;
+import net.imagej.ImageJ;
 import net.imglib2.Cursor;
 import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.algorithm.neighborhood.Neighborhood;
 import net.imglib2.algorithm.neighborhood.RectangleShape;
-
+import net.imglib2.img.Img;
 import net.imglib2.img.array.ArrayImg;
 import net.imglib2.img.basictypeaccess.IntAccess;
 import net.imglib2.img.basictypeaccess.array.IntArray;
+import net.imglib2.img.display.imagej.ImageJFunctions;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.numeric.integer.IntType;
+import net.imglib2.type.numeric.real.FloatType;
 import net.imglib2.util.Fraction;
 import net.imglib2.view.Views;
 
@@ -336,7 +341,41 @@ public class Maxima< T extends RealType<T> & NativeType<T> > extends DefaultLabe
 //		return array;
 //	}
 	
-	
+	public static void main(final String... args) throws IOException
+	{
+		ImageJ ij = new ImageJ();
+		ij.ui().showUI();
+		
+		//Dataset dataset = (Dataset) ij.io().open("C:/Users/Ben/workspace/testImages/blobs32.tif"); //rleLabelTest/toLabel2.tif");
+		//@SuppressWarnings("unchecked")
+		//Img<FloatType> img = (Img<FloatType>) dataset.getImgPlus();
+		//Img<FloatType> img2 = ij.op().convert().float32( img );
+		Img<FloatType> img =ImageJFunctions.wrap( IJ.openImage("C:/Users/Ben/workspace/testImages/noise2000_std50_blur10.tif") );
+		//Img<FloatType> img =ImageJFunctions.wrap( IJ.openImage("C:/Users/Ben/workspace/testImages/blobs32.tif") );
+		//Img<FloatType> img =ImageJFunctions.wrap( IJ.openImage("F:/projects/2DEmbryoSection_Mette_contourMaskInv.tif") );
+		
+		
+		
+		float threshold = 0.5f;
+		int nIter=100;
+		int warmup=50;
+		long dt1 = 0;
+		Maxima<FloatType> labeler1 = null;
+		RandomAccessibleInterval<IntType> labelMap1 = null;
+		for(int i=0 ; i<nIter ; i++) 
+		{
+			labeler1 = new Maxima<FloatType>( img , threshold);
+			labelMap1 = labeler1.getLabelMap();
+			long dt = labeler1.getProcessTime();
+			if(i>=warmup)
+				dt1 += dt;
+		}
+		System.out.println("dt1 " + (dt1/(nIter-warmup)));
+		
+		ij.ui().show(img);
+		ij.ui().show(labelMap1);
+		
+	}
 	
 
 	
