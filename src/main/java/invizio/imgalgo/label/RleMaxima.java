@@ -5,15 +5,14 @@ import java.util.ArrayList;
 import java.util.List;
 
 import ij.IJ;
-import ij.ImagePlus;
 import invizio.imgalgo.label.rleccl.PixelRun;
 import invizio.imgalgo.label.rleccl.RleImg;
-import invizio.imgalgo.label.rleccl.RleImgDefault;
 import invizio.imgalgo.label.rleccl.RleMaxImg;
 import invizio.imgalgo.label.rleccl.ValuedPixelRun;
 import invizio.imgalgo.util.Pixel;
 import net.imagej.ImageJ;
 import net.imglib2.Cursor;
+import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.img.Img;
 import net.imglib2.img.ImgFactory;
@@ -91,13 +90,109 @@ public class RleMaxima < T extends RealType<T> & NativeType<T> > extends Default
 			runImg = new RleMaxImg( input , threshold );
 		
 		rleDim = runImg.getRleDim();
+		neighDeltaPos = Pixel.getConnectivityPos(nDim-1, Pixel.Connectivity.INVERT_LEXICO_FULL);
+		neighLinearOffset = Pixel.getIdxOffsetToCenterPix(neighDeltaPos, rleDim );
+		long[][] neighDeltaPos2 = Pixel.getConnectivityPos(nDim-1, Pixel.Connectivity.LEXICO_FULL);
+		int[] neighLinearOffset2 = Pixel.getIdxOffsetToCenterPix(neighDeltaPos2, rleDim );
+		
+		// test if run is possible maxima
+		// strategy 1: look at the complete neighborhood of a run for validation in the 1st pass
+		// strategy 2: look one neighbor line at each pass (n neighbor line --> n real raster pass )
+		// strategy 3: for each run line do: for each neighbor line do: check run valididity 
+		//             --> 1 pass, trying to limit the number of jump between neighbor lines
+		// strategy 4: do one raster pass through the pixels, checking all neighbor lines runs for validity
+		//			   --> 1 real raster pass, tool to get neigh line already set up
+		        
+		// strategy 4
+		
+		
+		final RandomAccess<T> input_RA = input.randomAccess();
+		long[] pos = new long[nDim];
+		final int lineLength = (int)input.dimension(0);
+		for( int lineIndex=0 ; lineIndex < runImg.getNumberOfLines() ; lineIndex++ )
+		{
+			List<List<PixelRun>> neighborLines = getNeighborLines( lineIndex );
+			List<List<PixelRun>> neighborLines2 = getNeighborLines( lineIndex, neighLinearOffset2, neighDeltaPos2);
+			
+			long[] linePos = new long[nDim-1];
+			Pixel.getPosFromIdx(lineIndex, linePos, rleDim );
+			for( int d=1; d<nDim; d++) {
+				pos[d] = linePos[d-1];
+			}
+			
+			// make a list of neighbor runs sorted by start pixel
+			List<ValuedPixelRun> neighRunList = new ArrayList<ValuedPixelRun>();
+			//TreeSet<ValuedPixelRun> neighRunSet = new TreeSet<ValuedPixelRun>( (PixelRun r1, PixelRun r2)->r1.start-r2.start );
+			for(List<PixelRun> nruns : neighborLines) {
+				for( PixelRun nrun0 : nruns ) {
+					final ValuedPixelRun nrun = (ValuedPixelRun) nrun0;
+					if( nrun.valid ) {
+						nrun.label=-1;
+						neighRunList.add( nrun );
+					}
+				}
+			}
+			for(List<PixelRun> nruns : neighborLines2) {
+				for( PixelRun nrun0 : nruns ) {
+					final ValuedPixelRun nrun = (ValuedPixelRun) nrun0;
+					if( nrun.valid )
+						neighRunList.add( nrun );
+				}
+			}
+			neighRunList.sort( (PixelRun r1, PixelRun r2)->r1.start-r2.start );
+			
+			// for each pix in map test validity of mapped runs
+			//final Iterator<ValuedPixelRun> runIterator = neighRunList.iterator(); 
+			//while( runIterator.hasNext() ) {
+			for( ValuedPixelRun run : neighRunList ) {
+						
+				//final ValuedPixelRun run = runIterator.next();
+				int pos0 = Math.max(run.start-1, 0);
+				pos[0] = pos0;
+				input_RA.setPosition(pos);
+				final int iMax = Math.min(run.end+1, lineLength);
+				for(int i=pos0; i<iMax; i++) {
+					final float value = input_RA.get().getRealFloat();
+					
+					if( value > run.value ) {
+						run.valid=false;
+						break;
+					}
+					if ( value == run.value )
+						if( run.label==-1)
+							run.plato = true;
+						else
+							run.postplato = true;
+					input_RA.move(1,0);
+				}
+				run.label=0;
+			}
+		}
+		
+		
+		/*
+		// remove invalid run before the labeling
+		for( int lineIndex=0 ; lineIndex < runImg.getNumberOfLines() ; lineIndex++ )
+		{
+			final List<PixelRun> currentLine0 = runImg.getLine( lineIndex );
+			final List<PixelRun> currentLine = new ArrayList<PixelRun>();
+			for( PixelRun cRun : currentLine0 )
+			{
+				if(cRun.valid)
+					currentLine.add(cRun);
+			}
+			runImg.setLine(lineIndex, currentLine);
+		}*/
+
+		
+		
+		
+		// label each run line according the neighboring run lines already processed
 		
 		neighDeltaPos = Pixel.getConnectivityPos(nDim-1, Pixel.Connectivity.LEXICO_FULL);
 		neighLinearOffset = Pixel.getIdxOffsetToCenterPix(neighDeltaPos, rleDim );
-        
-		        
 		
-		// label each run line according the neighboring run lines already processed
+		
 		int label=1;
 		parent.add(0);
 		parent.add(1);
@@ -109,6 +204,17 @@ public class RleMaxima < T extends RealType<T> & NativeType<T> > extends Default
 			label = updateLabelEquivalence( currentLine , neighborLines, label );			
 		}
 		parent.remove( parent.size()-1);
+		
+		// final handling of post plato issue
+		for( int lineIndex=0 ; lineIndex < runImg.getNumberOfLines() ; lineIndex++ )
+		{
+			final List<PixelRun> currentLine = runImg.getLine( lineIndex );
+			for(PixelRun run0: currentLine) {
+				ValuedPixelRun run = (ValuedPixelRun) run0;
+				if ( run.postplato )
+					parent.set( findRoot(run.label) , 0);
+			}
+		}
 		
 		
 		// flatten the label look up
@@ -139,7 +245,12 @@ public class RleMaxima < T extends RealType<T> & NativeType<T> > extends Default
 		for( PixelRun cRun0 : currentLine )
 		{
 			final ValuedPixelRun cRun = (ValuedPixelRun) cRun0;  //
-			cRun.label = label;
+			if ( ! cRun.valid )
+				cRun.label = 0;
+			else
+				cRun.label = label;
+			
+			int cRunNeighCount = 0;
 			for( int neighLineIdx=0 ; neighLineIdx<neighborLines.size() ; neighLineIdx++ )
 			{
 				final List<PixelRun> neighborLine = neighborLines.get( neighLineIdx );
@@ -152,20 +263,21 @@ public class RleMaxima < T extends RealType<T> & NativeType<T> > extends Default
 				{
 					if( cRun.start <= nRun.end)
 					{
-						if( cRun.value == nRun.value) {
+						if( cRun.value == nRun.value)
+						{	
+							cRunNeighCount++;
+							nRun.postplato = false;
+							
 							if( cRun.label<label)
 								union( nRun , cRun );
 							else
 								cRun.label = findRoot(nRun.label);
 						}
 						else if( cRun.value > nRun.value ) {
-							// set nRun and its parent's label to 0
-							parent.set( findRoot(nRun.label) , 0 );
+							final int r = findRoot(nRun.label);
+							parent.set(r, 0);
 						}
-						else {// if( cRun.value < nRun.value ) {
-							// set cRun and its parent's label to 0
-							parent.set( findRoot(cRun.label) , 0 );
-						}
+						
 					}
 					if( nRun.end <= cRun.end  && (++nRunIdx[neighLineIdx]) < numberOfNeighborRun) {
 						// then go to the next neighbor run 
@@ -180,8 +292,14 @@ public class RleMaxima < T extends RealType<T> & NativeType<T> > extends Default
 				}
 					
 			}
+			if ( cRunNeighCount<=0 && cRun.plato ) {
+				cRun.label=0;
+				cRun.valid=false;
+			}
+			
 			if( cRun.label >= label )
 				parent.add( ++label );
+			
 		}
 		
 		
@@ -221,7 +339,7 @@ public class RleMaxima < T extends RealType<T> & NativeType<T> > extends Default
 		
 		
 		ImgFactory<IntType> imgFactory = Util.getArrayOrCellImgFactory( input, new IntType(0) );
-		labelMap = imgFactory.create( input, new IntType(0) );
+		labelMap = imgFactory.create( input );
 					
 		final Cursor<IntType> cursor = Views.flatIterable( labelMap ).cursor();
 		final int lineLength = (int) input.dimension(0);
@@ -230,8 +348,13 @@ public class RleMaxima < T extends RealType<T> & NativeType<T> > extends Default
 		{
 			
 			final List<PixelRun> currentLine = runImg.getLine( lineIndex );
-			for( PixelRun cRun : currentLine )
+			for( PixelRun cRun0 : currentLine )
 			{
+				final ValuedPixelRun cRun = (ValuedPixelRun) cRun0;
+				//int value=128;
+				//if( cRun.valid )
+				//	value = 255;
+				
 				// position cursor at the beginning of the run
 				final long jump = cRun.start - prevRunEnd;
 				if( jump>0)
@@ -274,7 +397,25 @@ public class RleMaxima < T extends RealType<T> & NativeType<T> > extends Default
 		return neighborLines;
 	}
 
-	
+	private List<List<PixelRun>> getNeighborLines(int lineIndex, int[] neighLinearOffset, long[][] neighDeltaPos)
+	{
+		final int nNeigh = neighLinearOffset.length;
+		List<List<PixelRun>> neighborLines = new ArrayList<List<PixelRun>>();
+		long[] currentPos = new long[nDim-1];
+		Pixel.getPosFromIdx(lineIndex, currentPos, rleDim );
+		for( int n=0 ; n<nNeigh ; n++)
+		{
+			final long[] neighPos = new long[nDim-1];
+			for(int d=0; d<nDim-1 ; d++)
+				neighPos[d] = currentPos[d] + neighDeltaPos[n][d]; 
+			if( runImg.isInBound( neighPos ) )	
+			{
+				final List<PixelRun> neighLine = runImg.getLine( lineIndex + neighLinearOffset[n] );
+				neighborLines.add( neighLine );
+			}
+		}
+		return neighborLines;
+	}
 	
 	private int findRoot(int p)
 	{
@@ -291,8 +432,9 @@ public class RleMaxima < T extends RealType<T> & NativeType<T> > extends Default
 	private void union(ValuedPixelRun nRun, ValuedPixelRun cRun)
 	{
 		final int r = findRoot(nRun.label);
-		if( cRun.label < r )
+		if( cRun.label < r ) {
 			parent.set(r, cRun.label);
+		}
 		else if( cRun.label > r ) 
 		{
 			parent.set(cRun.label, r);
@@ -325,12 +467,15 @@ public class RleMaxima < T extends RealType<T> & NativeType<T> > extends Default
 		//Img<FloatType> img =ImageJFunctions.wrap( IJ.openImage("C:/Users/Ben/workspace/testImages/blobs32.tif") );
 		//Img<FloatType> img =ImageJFunctions.wrap( IJ.openImage("F:/projects/2DEmbryoSection_Mette_contourMaskInv.tif") );
 		Img<FloatType> img = ImageJFunctions.wrap( IJ.openImage("C:/Users/Ben/workspace/testImages/noise2000_std50_blur10.tif") );
+		//Img<FloatType> img = ImageJFunctions.wrap( IJ.openImage("C:/Users/Ben/workspace/testImages/sample_test_rle_max6.tif") );
+		
+		
 		//img = (Img<FloatType>) ij.op().math().multiply( img, new FloatType(-1) );
 		
 		
 		float threshold = 0.5f;
-		int nIter=20;
-		int nWarmup = 10;
+		int nIter=100;
+		int nWarmup = 50;
 
 		long dt1 = 0;
 		RleMaxima<FloatType> labeler1 = null;

@@ -19,6 +19,7 @@ public class Pixel {
 	{
 		LEXICO_FACE,
 		LEXICO_FULL,
+		INVERT_LEXICO_FULL,
 		FACE,
 		FULL
 	}
@@ -84,6 +85,24 @@ public class Pixel {
 			}
 			break;
 			
+		case INVERT_LEXICO_FULL :
+			int maxIdx = (int) Math.pow(3,ndim)-1;
+			npos = (int) ( (Math.pow(3,ndim)-1) / 2 );
+			pos = new long[npos][ndim];
+			for(int i=0; i<npos; i++)
+				for(int j=0; j<ndim; j++)
+					pos[i][j]=0;
+			
+			for(int i=0; i<npos; i++)
+			{
+				int idx=maxIdx-i;
+				for ( int j = 0; j < ndim; j++ )
+				{
+					pos[ i ][j] = ( int ) ( idx % 3 )-1;
+					idx /= 3;
+				}
+			}
+			break;
 			
 		default : // FACE: all the pixel adjacent to the center pixel by a face
 				  // 4 connect in 2d, 6 connect in 3d, ...

@@ -31,7 +31,7 @@ public class RAI {
 		// create an appropriate factory for the output
 		T sampleT = input.randomAccess().get().createVariable();
 		ImgFactory<T> imgFactory = Util.getArrayOrCellImgFactory( input, sampleT );
-		RandomAccessibleInterval<T> output = imgFactory.create( input, sampleT );
+		RandomAccessibleInterval<T> output = imgFactory.create( input );
 		
 		
 		// copy input into output (and adapt the process depending whether the two RAI have the same iteration order)
@@ -88,7 +88,7 @@ public class RAI {
 		// create an empty RAI for the output
 		T sampleT = input.randomAccess().get().createVariable();
 		ImgFactory<T> imgFactory = Util.getArrayOrCellImgFactory( new FinalInterval(out_dims), sampleT );
-		RandomAccessibleInterval<T> output = imgFactory.create( out_dims, sampleT );
+		RandomAccessibleInterval<T> output = imgFactory.create( out_dims );
 		
 		
 		
@@ -124,7 +124,7 @@ public class RAI {
 		
 		// determine an appropriate factory for the output
 		ImgFactory<IntType> imgFactory = Util.getArrayOrCellImgFactory( input, new IntType(0) );
-		RandomAccessibleInterval<IntType> output =  imgFactory.create( input, new IntType(0) );
+		RandomAccessibleInterval<IntType> output =  imgFactory.create( input);
 
 		// copy input into output
 		// could such conversion benefit more infrastructure if using Convert api in imglib2  

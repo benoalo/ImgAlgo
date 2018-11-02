@@ -107,15 +107,18 @@ public class RleMaxImg extends RleImgDefault {
 					}
 					else if( val<prevVal ) {
 						if( start>=0) {
-							rleLine.add( new  ValuedPixelRun(start, pixIndex, val) );
+							rleLine.add( new  ValuedPixelRun(start, pixIndex, prevVal) );
 							start=-1;
 						}
 					}
 					prevVal = val;
 				}
-				else if( start>=0) {
-					rleLine.add( new  ValuedPixelRun(start, pixIndex, val) );
-					start=-1;
+				else  {
+					if( start>=0) {
+						rleLine.add( new  ValuedPixelRun(start, pixIndex, prevVal) );
+						start=-1;
+					}
+					prevVal=threshold;
 				}
 			}
 			if( start>=0) 
