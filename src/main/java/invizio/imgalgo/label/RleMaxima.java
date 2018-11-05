@@ -4,7 +4,15 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.python.antlr.runtime.misc.Stats;
+
 import ij.IJ;
+import ij.ImagePlus;
+import ij.measure.Measurements;
+import ij.plugin.Duplicator;
+import ij.plugin.ImageCalculator;
+import ij.process.ImageStatistics;
+import ij.process.StackStatistics;
 import invizio.imgalgo.label.rleccl.PixelRun;
 import invizio.imgalgo.label.rleccl.RleImg;
 import invizio.imgalgo.label.rleccl.RleMaxImg;
@@ -122,7 +130,6 @@ public class RleMaxima < T extends RealType<T> & NativeType<T> > extends Default
 			
 			// make a list of neighbor runs sorted by start pixel
 			List<ValuedPixelRun> neighRunList = new ArrayList<ValuedPixelRun>();
-			//TreeSet<ValuedPixelRun> neighRunSet = new TreeSet<ValuedPixelRun>( (PixelRun r1, PixelRun r2)->r1.start-r2.start );
 			for(List<PixelRun> nruns : neighborLines) {
 				for( PixelRun nrun0 : nruns ) {
 					final ValuedPixelRun nrun = (ValuedPixelRun) nrun0;
@@ -151,20 +158,33 @@ public class RleMaxima < T extends RealType<T> & NativeType<T> > extends Default
 				pos[0] = pos0;
 				input_RA.setPosition(pos);
 				final int iMax = Math.min(run.end+1, lineLength);
+				final float runValue = run.value;
+				int countPlateau=0;
+				if( run.label==-1)
+					countPlateau = run.plato;
+				else
+					countPlateau = run.postplato;
+				int iPrev=-10;
 				for(int i=pos0; i<iMax; i++) {
-					final float value = input_RA.get().getRealFloat();
+					final float pixValue = input_RA.get().getRealFloat();
 					
-					if( value > run.value ) {
+					if( pixValue > runValue ) {
 						run.valid=false;
 						break;
 					}
-					if ( value == run.value )
-						if( run.label==-1)
-							run.plato = true;
-						else
-							run.postplato = true;
-					input_RA.move(1,0);
+					// count the number of plateau
+					if ( pixValue == runValue ) {
+						if( i>iPrev+1 )
+							countPlateau++;
+						iPrev=i;
+					}
+						
+					input_RA.fwd(0); // move one pixel along dimension 0
 				}
+				if( run.label==-1)
+					run.plato = countPlateau;
+				else
+					run.postplato = countPlateau;
 				run.label=0;
 			}
 		}
@@ -201,7 +221,7 @@ public class RleMaxima < T extends RealType<T> & NativeType<T> > extends Default
 		{
 			final List<PixelRun> currentLine = runImg.getLine( lineIndex );
 			List<List<PixelRun>> neighborLines = getNeighborLines( lineIndex );
-			label = updateLabelEquivalence( currentLine , neighborLines, label );			
+			label = updateLabelEquivalence( currentLine , neighborLines, label );
 		}
 		parent.remove( parent.size()-1);
 		
@@ -211,7 +231,7 @@ public class RleMaxima < T extends RealType<T> & NativeType<T> > extends Default
 			final List<PixelRun> currentLine = runImg.getLine( lineIndex );
 			for(PixelRun run0: currentLine) {
 				ValuedPixelRun run = (ValuedPixelRun) run0;
-				if ( run.postplato )
+				if ( run.postplato>=1 )
 					parent.set( findRoot(run.label) , 0);
 			}
 		}
@@ -250,7 +270,7 @@ public class RleMaxima < T extends RealType<T> & NativeType<T> > extends Default
 			else
 				cRun.label = label;
 			
-			int cRunNeighCount = 0;
+			// int cRunNeighCount = 0;
 			for( int neighLineIdx=0 ; neighLineIdx<neighborLines.size() ; neighLineIdx++ )
 			{
 				final List<PixelRun> neighborLine = neighborLines.get( neighLineIdx );
@@ -265,8 +285,8 @@ public class RleMaxima < T extends RealType<T> & NativeType<T> > extends Default
 					{
 						if( cRun.value == nRun.value)
 						{	
-							cRunNeighCount++;
-							nRun.postplato = false;
+							cRun.plato--;
+							nRun.postplato--;
 							
 							if( cRun.label<label)
 								union( nRun , cRun );
@@ -292,8 +312,10 @@ public class RleMaxima < T extends RealType<T> & NativeType<T> > extends Default
 				}
 					
 			}
-			if ( cRunNeighCount<=0 && cRun.plato ) {
-				cRun.label=0;
+			//if ( cRunNeighCount<=0 && cRun.plato ) {
+			if ( cRun.plato>=1 ) {
+				//cRun.label=0;
+				parent.set( findRoot(cRun.label) , 0);
 				cRun.valid=false;
 			}
 			
@@ -466,16 +488,17 @@ public class RleMaxima < T extends RealType<T> & NativeType<T> > extends Default
 		//Img<FloatType> img2 = ij.op().convert().float32( img );
 		//Img<FloatType> img =ImageJFunctions.wrap( IJ.openImage("C:/Users/Ben/workspace/testImages/blobs32.tif") );
 		//Img<FloatType> img =ImageJFunctions.wrap( IJ.openImage("F:/projects/2DEmbryoSection_Mette_contourMaskInv.tif") );
-		Img<FloatType> img = ImageJFunctions.wrap( IJ.openImage("C:/Users/Ben/workspace/testImages/noise2000_std50_blur10.tif") );
-		//Img<FloatType> img = ImageJFunctions.wrap( IJ.openImage("C:/Users/Ben/workspace/testImages/sample_test_rle_max6.tif") );
+		//Img<FloatType> img = ImageJFunctions.wrap( IJ.openImage("C:/Users/Ben/workspace/testImages/noise2000_std50_blur10.tif") );
+		//Img<FloatType> img = ImageJFunctions.wrap( IJ.openImage("C:/Users/Ben/workspace/testImages/t1-head.tif") );
+		Img<FloatType> img = ImageJFunctions.wrap( IJ.openImage("C:/Users/Ben/workspace/testImages/rleMaxTest/sample_test_rle_max7.tif") );
 		
 		
 		//img = (Img<FloatType>) ij.op().math().multiply( img, new FloatType(-1) );
 		
 		
-		float threshold = 0.5f;
+		float threshold = -100f;
 		int nIter=100;
-		int nWarmup = 50;
+		int nWarmup = 20;
 
 		long dt1 = 0;
 		RleMaxima<FloatType> labeler1 = null;
@@ -505,11 +528,41 @@ public class RleMaxima < T extends RealType<T> & NativeType<T> > extends Default
 			}
 		}
 		System.out.println(  "dt2 " + ( dt2/(nIter-nWarmup) )  );
+		
+		
+		// test that label map select the same pixels
+		final int nDim= labelMap1.numDimensions();
+		double deltaValue = Double.MIN_VALUE;
+		ImageStatistics stats = null;
+		ImagePlus imp3 = null;
+		
+		ImagePlus imp1 = ImageJFunctions.wrap(labelMap1,"label map 1");
+		imp1 = (new Duplicator()).run(imp1);
+		IJ.setThreshold(imp1 ,0.5, 65535);
+		
+		ImagePlus imp2 = ImageJFunctions.wrap(labelMap2,"label map 2");
+		imp2 = (new Duplicator()).run(imp2);
+		IJ.setThreshold(imp2 ,0.5, 65535);
 
-				
+		if ( nDim == 2 ) { 
+			IJ.run(imp1, "Convert to Mask", "");
+			IJ.run(imp2, "Convert to Mask", "");
+			imp3 = (new ImageCalculator()).run("Subtract create 32-bit", imp1, imp2);
+			stats = imp3.getStatistics();		
+		}
+		else if( nDim>2 ) {
+			IJ.run(imp1, "Convert to Mask", "background=Dark black");
+			IJ.run(imp2, "Convert to Mask", "background=Dark black");
+			imp3 = (new ImageCalculator()).run("Subtract create 32-bit stack", imp1, imp2);
+			stats = new StackStatistics(imp3);
+		}
+		deltaValue = stats.max - stats.min;
+		ij.log().log(0, "image difference is: " + deltaValue );
+		
 		ij.ui().show(img);
 		ij.ui().show(labelMap1);
 		ij.ui().show(labelMap2);
+		ij.ui().show(imp3);
 		
 		
 	}

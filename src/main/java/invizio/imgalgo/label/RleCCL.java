@@ -312,8 +312,8 @@ public class RleCCL < T extends RealType<T> & NativeType<T> > extends DefaultLab
 		
 		
 		float threshold = 0.5f;
-		int nIter=20;
-		int nWarmup=10;
+		int nIter=100;
+		int nWarmup=50;
 		
 		long dt1 = 0;
 		RleCCL<FloatType> labeler1 = null;
