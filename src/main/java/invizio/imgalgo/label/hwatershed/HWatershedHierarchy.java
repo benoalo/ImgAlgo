@@ -7,11 +7,10 @@ import ij.IJ;
 import ij.ImagePlus;
 import invizio.imgalgo.HierarchicalFIFO;
 import invizio.imgalgo.label.DefaultLabelAlgorithm;
-import invizio.imgalgo.label.Maxima;
+import invizio.imgalgo.label.RleMaxima;
 import invizio.imgalgo.label.hwatershed.Tree;
 import invizio.imgalgo.util.Pixel;
 import invizio.imgalgo.util.RAI;
-import net.imagej.Dataset;
 import net.imagej.ImageJ;
 import net.imglib2.Cursor;
 import net.imglib2.FinalInterval;
@@ -23,7 +22,6 @@ import net.imglib2.img.display.imagej.ImageJFunctions;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.numeric.integer.IntType;
-import net.imglib2.type.numeric.real.AbstractRealType;
 import net.imglib2.type.numeric.real.FloatType;
 import net.imglib2.view.Views;
 
@@ -38,7 +36,7 @@ import net.imglib2.view.Views;
  * TODO:
  *  [x] make algorithm class derive from an abstract algorithm class that extends runnable and has a progress getter
  *
- * 	[-] make the HWatershedHierarchy img factory agnostic
+ * 	[-] make the HMaxima_IFT img factory agnostic
  * 		[-] make isDequeued a randomAcssessible interval booleanType
  *  [x] make input random Accessible
  *  [x] check that output are always IntType (should be true for all label algorithm)
@@ -50,6 +48,7 @@ import net.imglib2.view.Views;
  *  	[x] adapt the tree features (Imax and HCriteria)
  *  [-] possible bug when threshold is non zeros 
  *  
+ *  2018-11-05: update Maxima detection to RleMaxima.
  */
 
 
@@ -116,7 +115,7 @@ public class HWatershedHierarchy <T extends RealType<T> & NativeType<T>> extends
 		float max = Tmax.getRealFloat();
 		
 		// get local maxima (8/26 connected by default)
-		Maxima<IntType> maxLabeler = new Maxima<IntType>(labelMap, min);
+		RleMaxima<IntType> maxLabeler = new RleMaxima<IntType>(labelMap, min);
 		RandomAccessibleInterval<IntType> seed = maxLabeler.getLabelMap();	
 		IntType TnSeeds = new IntType(0);
 		IntType Tdummy = new IntType(0);
