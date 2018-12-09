@@ -54,6 +54,7 @@ public class RleMaxima < T extends RealType<T> & NativeType<T> > extends Default
 	private  long[][] neighDeltaPos;
 	private  int[] neighLinearOffset;
 	
+	private boolean labelSetAtParentRoot=false;
 	
 	
 	public List<Integer> getLabelEquivalence() {
@@ -61,6 +62,31 @@ public class RleMaxima < T extends RealType<T> & NativeType<T> > extends Default
 	}
 
 	public RleImg getRleImg() {
+		
+		if( ! isProcessed  )
+			run();
+		
+		setLabelAtParentRoots();
+		
+		// update runImg label to their parent root
+		for( int lineIndex=0 ; lineIndex < runImg.getNumberOfLines() ; lineIndex++ )
+		{
+			final List<PixelRun> currentLine = runImg.getLine( lineIndex );
+			final List<PixelRun> newRunLine = new ArrayList<PixelRun>();
+			for( PixelRun cRun0 : currentLine )
+			{	
+				final ValuedPixelRun cRun = (ValuedPixelRun) cRun0;
+				final int labelValue = parent.get( cRun.label );
+				if( labelValue>0 ) {
+					// position cursor at the beginning of the run
+					cRun0.label = labelValue;
+					newRunLine.add(cRun0);
+				}
+			}
+			// set the new runline
+			runImg.setLine(lineIndex, newRunLine);
+		}
+		
 		return runImg;
 	}
 
@@ -189,24 +215,7 @@ public class RleMaxima < T extends RealType<T> & NativeType<T> > extends Default
 			}
 		}
 		
-		
-		/*
-		// remove invalid run before the labeling
-		for( int lineIndex=0 ; lineIndex < runImg.getNumberOfLines() ; lineIndex++ )
-		{
-			final List<PixelRun> currentLine0 = runImg.getLine( lineIndex );
-			final List<PixelRun> currentLine = new ArrayList<PixelRun>();
-			for( PixelRun cRun : currentLine0 )
-			{
-				if(cRun.valid)
-					currentLine.add(cRun);
-			}
-			runImg.setLine(lineIndex, currentLine);
-		}*/
-
-		
-		
-		
+				
 		// label each run line according the neighboring run lines already processed
 		
 		neighDeltaPos = Pixel.getConnectivityPos(nDim-1, Pixel.Connectivity.LEXICO_FULL);
@@ -348,17 +357,7 @@ public class RleMaxima < T extends RealType<T> & NativeType<T> > extends Default
 	private void createLabelMap()
 	{
 		// go through the runs and create a label image
-		
-		int newLabel = 0;
-		for( int i=1 ; i<parent.size() ; i++  ) {
-			int pari = parent.get(i);
-			if( pari == i )
-				parent.set(i, ++newLabel );
-			else
-				parent.set(i, parent.get(pari) );
-		}
-
-		
+		setLabelAtParentRoots();	
 		
 		ImgFactory<IntType> imgFactory = Util.getArrayOrCellImgFactory( input, new IntType(0) );
 		labelMap = imgFactory.create( input );
@@ -368,26 +367,23 @@ public class RleMaxima < T extends RealType<T> & NativeType<T> > extends Default
 		int prevRunEnd = 0;
 		for( int lineIndex=0 ; lineIndex < runImg.getNumberOfLines() ; lineIndex++ )
 		{
-			
 			final List<PixelRun> currentLine = runImg.getLine( lineIndex );
 			for( PixelRun cRun0 : currentLine )
-			{
+			{	
 				final ValuedPixelRun cRun = (ValuedPixelRun) cRun0;
-				//int value=128;
-				//if( cRun.valid )
-				//	value = 255;
-				
-				// position cursor at the beginning of the run
-				final long jump = cRun.start - prevRunEnd;
-				if( jump>0)
-					cursor.jumpFwd( jump );
-				
-				// iterate till the end of the run
-				final int runLength =  cRun.end - cRun.start;
-				final int value = parent.get( cRun.label );
-				for( int i=0 ; i<runLength ; i++ )
-					cursor.next().set( value );
-				prevRunEnd = cRun.end;
+				final int labelValue = parent.get( cRun.label );
+				if( labelValue>0 ) {
+					// position cursor at the beginning of the run
+					final long jump = cRun.start - prevRunEnd;
+					if( jump>0)
+						cursor.jumpFwd( jump );
+					
+					// iterate till the end of the run
+					final int runLength =  cRun.end - cRun.start;
+					for( int i=0 ; i<runLength ; i++ )
+						cursor.next().set( labelValue );
+					prevRunEnd = cRun.end;
+				}
 			}
 			
 			// go to the beginning of next line
@@ -396,7 +392,23 @@ public class RleMaxima < T extends RealType<T> & NativeType<T> > extends Default
 		}
 	}
 	
-
+	private void setLabelAtParentRoots()
+	{
+		if( labelSetAtParentRoot )
+			return;
+		
+		int newLabel = 0;
+		for( int i=1 ; i<parent.size() ; i++  ) {
+			int pari = parent.get(i);
+			if( pari == i )
+				parent.set(i, ++newLabel );
+			else
+				parent.set(i, parent.get(pari) );
+		}
+		labelSetAtParentRoot = true;
+		
+		return;
+	}
 	
 	
 	private List<List<PixelRun>> getNeighborLines(int lineIndex)
@@ -486,19 +498,19 @@ public class RleMaxima < T extends RealType<T> & NativeType<T> > extends Default
 		//@SuppressWarnings("unchecked")
 		//Img<FloatType> img = (Img<FloatType>) dataset.getImgPlus();
 		//Img<FloatType> img2 = ij.op().convert().float32( img );
-		//Img<FloatType> img =ImageJFunctions.wrap( IJ.openImage("C:/Users/Ben/workspace/testImages/blobs32.tif") );
+		Img<FloatType> img =ImageJFunctions.wrap( IJ.openImage("C:/Users/Ben/workspace/testImages/blobs32.tif") );
 		//Img<FloatType> img =ImageJFunctions.wrap( IJ.openImage("F:/projects/2DEmbryoSection_Mette_contourMaskInv.tif") );
 		//Img<FloatType> img = ImageJFunctions.wrap( IJ.openImage("C:/Users/Ben/workspace/testImages/noise2000_std50_blur10.tif") );
 		//Img<FloatType> img = ImageJFunctions.wrap( IJ.openImage("C:/Users/Ben/workspace/testImages/t1-head.tif") );
-		Img<FloatType> img = ImageJFunctions.wrap( IJ.openImage("C:/Users/Ben/workspace/testImages/rleMaxTest/sample_test_rle_max7.tif") );
+		//Img<FloatType> img = ImageJFunctions.wrap( IJ.openImage("C:/Users/Ben/workspace/testImages/rleMaxTest/sample_test_rle_max7.tif") );
 		
 		
 		//img = (Img<FloatType>) ij.op().math().multiply( img, new FloatType(-1) );
 		
 		
 		float threshold = -100f;
-		int nIter=100;
-		int nWarmup = 20;
+		int nIter=10;
+		int nWarmup = 1;
 
 		long dt1 = 0;
 		RleMaxima<FloatType> labeler1 = null;
