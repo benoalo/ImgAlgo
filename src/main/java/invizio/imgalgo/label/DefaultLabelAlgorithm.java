@@ -5,12 +5,14 @@ import net.imglib2.Cursor;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.algorithm.stats.ComputeMinMax;
 import net.imglib2.RandomAccess;
+import net.imglib2.img.ImgFactory;
 import net.imglib2.img.array.ArrayImgFactory;
 import net.imglib2.img.cell.CellImgFactory;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.numeric.integer.IntType;
 import net.imglib2.view.Views;
+import net.imglib2.util.Util;
 
 /**
  * 
@@ -149,15 +151,11 @@ public class DefaultLabelAlgorithm < T extends RealType<T> & NativeType<T> >  im
 		
 		// determine an appropriate factory for the output
 		long nPixel = Views.iterable( input ).size();
+		
 		T valT = input.randomAccess().get().createVariable();
-		RandomAccessibleInterval<T> output = null;
-		if( nPixel < Math.pow(2, 31) ){
-			output = new ArrayImgFactory<T>().create( input, valT);
-		}
-		else{
-			output = new CellImgFactory<T>().create( input, valT );
-		}
-
+		ImgFactory<T> imgFactory = Util.getArrayOrCellImgFactory(input, valT);
+		RandomAccessibleInterval<T> output = imgFactory.create(input);  
+		
 		// copy input into output
 		final Cursor< T > out = Views.iterable( output ).cursor();
 		final RandomAccess< T > in = input.randomAccess();
@@ -177,14 +175,16 @@ public class DefaultLabelAlgorithm < T extends RealType<T> & NativeType<T> >  im
 	protected boolean scaleFactorProcessed = false;
 	protected float scaleFactor=1;
 	protected float offset=0;
-
+	protected float inputMin;
+	protected float inputMax;
+	
 	protected void getScaleFactor() {
 		if( ! scaleFactorProcessed ) {
 			final T Tmin = input.randomAccess().get().createVariable();
 			final T Tmax = Tmin.createVariable();		
 			ComputeMinMax.computeMinMax( input, Tmin, Tmax);
-			float inputMin = Tmin.getRealFloat() ;
-			float inputMax = Tmax.getRealFloat() ;
+			inputMin = Tmin.getRealFloat() ;
+			inputMax = Tmax.getRealFloat() ;
 			final float range = inputMax - inputMin ;
 			
 			scaleFactor = range >= 255f ? 1f : 255f/range;
